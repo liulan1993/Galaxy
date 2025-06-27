@@ -5,7 +5,7 @@
 // ============================================================================
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Trail, Html } from '@react-three/drei';
+import { OrbitControls, Trail } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,11 +18,11 @@ import { ArrowRight, Link, Zap, Calendar, Code, FileText, User, Clock } from "lu
 
 
 // ============================================================================
-// A. UI & 工具组件 (合并自多个文件)
+// A. 合并后的“旋转菜单栏”组件及其依赖项
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// A.1. 工具函数与样式 (来自 lib/utils, globals.css)
+// A.1. 工具函数与全局样式 (来自 lib/utils, globals.css)
 // ----------------------------------------------------------------------------
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -38,7 +38,10 @@ const GlobalTimelineStyles = () => (
     .border-white\\/10 { border-color: rgba(255, 255, 255, 0.1); }
     .border-white\\/20 { border-color: rgba(255, 255, 255, 0.2); }
     .border-white\\/30 { border-color: rgba(255, 255, 255, 0.3); }
+    .border-white\\/40 { border-color: rgba(255, 255, 255, 0.4); }
     .bg-black\\/90 { background-color: rgba(0, 0, 0, 0.9); }
+    .bg-white\\/50 { background-color: rgba(255, 255, 255, 0.5); }
+    .bg-white\\/80 { background-color: rgba(255, 255, 255, 0.8); }
     .text-white\\/70 { color: rgba(255, 255, 255, 0.7); }
     .text-white\\/80 { color: rgba(255, 255, 255, 0.8); }
   `}</style>
@@ -47,12 +50,12 @@ const GlobalTimelineStyles = () => (
 // ----------------------------------------------------------------------------
 // A.2. UI基础组件 (来自 badge.tsx, button.tsx, card.tsx)
 // ----------------------------------------------------------------------------
-const badgeVariants = cva("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors", { variants: { variant: { default: "border-transparent bg-primary text-primary-foreground", secondary: "border-transparent bg-secondary text-secondary-foreground", destructive: "border-transparent bg-destructive text-destructive-foreground", outline: "text-foreground" } }, defaultVariants: { variant: "default" } });
+const badgeVariants = cva("inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2", { variants: { variant: { default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80", secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80", destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80", outline: "text-foreground" } }, defaultVariants: { variant: "default" } });
 interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(({ className, variant, ...props }, ref) => (<div ref={ref} className={cn(badgeVariants({ variant }), className)} {...props} />));
 Badge.displayName = "Badge";
 
-const buttonVariants = cva("inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50", { variants: { variant: { default: "bg-primary text-primary-foreground hover:bg-primary/90", destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90", outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground", secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80", ghost: "hover:bg-accent hover:text-accent-foreground", link: "text-primary underline-offset-4 hover:underline" }, size: { default: "h-10 px-4 py-2", sm: "h-9 rounded-md px-3", lg: "h-11 rounded-md px-8", icon: "h-10 w-10" } }, defaultVariants: { variant: "default", size: "default" } });
+const buttonVariants = cva("inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50", { variants: { variant: { default: "bg-primary text-primary-foreground hover:bg-primary/90", destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90", outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground", secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80", ghost: "hover:bg-accent hover:text-accent-foreground", link: "text-primary underline-offset-4 hover:underline" }, size: { default: "h-10 px-4 py-2", sm: "h-9 rounded-md px-3", lg: "h-11 rounded-md px-8", icon: "h-10 w-10" } }, defaultVariants: { variant: "default", size: "default" } });
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement>, VariantProps<typeof buttonVariants> { asChild?: boolean; }
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant, size, asChild = false, ...props }, ref) => { const Comp = asChild ? Slot : "button"; return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />; });
 Button.displayName = "Button";
@@ -66,179 +69,190 @@ CardTitle.displayName = "CardTitle";
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (<div ref={ref} className={cn("p-6 pt-0", className)} {...props} />));
 CardContent.displayName = "CardContent";
 
-
-// ============================================================================
-// B. 新增：3D轨道菜单核心组件
-// ============================================================================
-
 // ----------------------------------------------------------------------------
-// B.1. 数据与类型定义
+// A.3. 主时间轴组件 (来自 radial-orbital-timeline.tsx, demo.tsx)
 // ----------------------------------------------------------------------------
 interface TimelineItem {
   id: number; title: string; date: string; content: string; category: string; icon: React.ComponentType<{ size?: number; className?: string }>; relatedIds: number[]; status: "completed" | "in-progress" | "pending"; energy: number;
 }
 
 const timelineData: TimelineItem[] = [
-    { id: 1, title: "规划", date: "2024年1月", content: "项目规划与需求收集阶段。", category: "Planning", icon: Calendar, relatedIds: [2], status: "completed", energy: 100 },
-    { id: 2, title: "设计", date: "2024年2月", content: "UI/UX 设计及系统架构。", category: "Design", icon: FileText, relatedIds: [1, 3], status: "completed", energy: 90 },
-    { id: 3, title: "开发", date: "2024年3月", content: "核心功能实现与单元测试。", category: "Development", icon: Code, relatedIds: [2, 4], status: "in-progress", energy: 60 },
-    { id: 4, title: "测试", date: "2024年4月", content: "用户测试与 Bug 修复。", category: "Testing", icon: User, relatedIds: [3, 5], status: "pending", energy: 30 },
-    { id: 5, title: "发布", date: "2024年5月", content: "最终部署与正式发布。", category: "Release", icon: Clock, relatedIds: [4], status: "pending", energy: 10 },
+  { id: 1, title: "规划", date: "2024年1月", content: "项目规划与需求收集阶段。", category: "Planning", icon: Calendar, relatedIds: [2], status: "completed", energy: 100, },
+  { id: 2, title: "设计", date: "2024年2月", content: "UI/UX 设计及系统架构。", category: "Design", icon: FileText, relatedIds: [1, 3], status: "completed", energy: 90, },
+  { id: 3, title: "开发", date: "2024年3月", content: "核心功能实现与单元测试。", category: "Development", icon: Code, relatedIds: [2, 4], status: "in-progress", energy: 60, },
+  { id: 4, title: "测试", date: "2024年4月", content: "用户测试与 Bug 修复。", category: "Testing", icon: User, relatedIds: [3, 5], status: "pending", energy: 30, },
+  { id: 5, title: "发布", date: "2024年5月", content: "最终部署与正式发布。", category: "Release", icon: Clock, relatedIds: [4], status: "pending", energy: 10, },
 ];
 
-// ----------------------------------------------------------------------------
-// B.2. 单个3D菜单节点组件
-// ----------------------------------------------------------------------------
-const MenuNode: React.FC<{
-    item: TimelineItem;
-    position: [number, number, number];
-    isExpanded: boolean;
-    isRelated: boolean;
-    onClick: () => void;
-    onToggleRelated: (id: number) => void;
-}> = ({ item, position, isExpanded, isRelated, onClick, onToggleRelated }) => {
-    const { icon: Icon } = item; // 修复点：将 { Icon } 修改为 { icon: Icon }
-    const [isHovered, setIsHovered] = useState(false);
-    const getStatusStyles = (status: TimelineItem["status"]): string => {
-        switch (status) {
-            case "completed": return "text-white bg-green-500 border-green-500";
-            case "in-progress": return "text-black bg-yellow-400 border-yellow-400";
-            case "pending": return "text-white bg-gray-500/80 border-gray-500/80";
-            default: return "text-white bg-black/40 border-white/50";
-        }
-    };
-    return (
-        <group position={position}>
-            <mesh
-                onClick={onClick}
-                onPointerOver={() => setIsHovered(true)}
-                onPointerOut={() => setIsHovered(false)}
-                scale={isHovered ? 1.2 : 1}
-            >
-                <sphereGeometry args={[0.1, 32, 32]} />
-                <meshStandardMaterial
-                    color={"#ffffff"}
-                    emissive={isExpanded ? "#818cf8" : isRelated ? "#facc15" : "#60a5fa"}
-                    emissiveIntensity={isExpanded ? 2.5 : isRelated ? 4 : 1.5}
-                    toneMapped={false}
-                />
-            </mesh>
+function RadialOrbitalTimeline() {
+  const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
+  const [rotationAngle, setRotationAngle] = useState<number>(0);
+  const [autoRotate, setAutoRotate] = useState<boolean>(true);
+  const [pulseEffect, setPulseEffect] = useState<Record<number, boolean>>({});
+  const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const orbitRef = useRef<HTMLDivElement>(null);
+  const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-            <Html center>
-                <div
-                    className="transition-all duration-300 pointer-events-none text-white"
-                    style={{
-                        width: '256px',
-                        opacity: isExpanded ? 1 : 0,
-                        visibility: isExpanded ? 'visible' : 'hidden',
-                        transform: 'translateY(15px)',
-                    }}
-                >
-                    <Card className="bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible pointer-events-auto">
-                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
-                        <CardHeader className="pb-2">
-                            <div className="flex justify-between items-center">
-                                <Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>
-                                    {item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"}
-                                </Badge>
-                                <span className="text-xs font-mono text-white/50">{item.date}</span>
-                            </div>
-                            <CardTitle className="text-sm mt-2 text-white">{item.title}</CardTitle>
-                        </CardHeader>
-                        <CardContent className="text-xs text-white/80">
-                            <p>{item.content}</p>
-                            <div className="mt-4 pt-3 border-t border-white/10">
-                                <div className="flex justify-between items-center text-xs mb-1">
-                                    <span className="flex items-center"><Zap size={10} className="mr-1" />能量指数</span>
-                                    <span className="font-mono">{item.energy}%</span>
-                                </div>
-                                <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-                                    <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: `${item.energy}%` }}></div>
-                                </div>
-                            </div>
-                            {item.relatedIds.length > 0 && (
-                                <div className="mt-4 pt-3 border-t border-white/10">
-                                    <div className="flex items-center mb-2"><Link size={10} className="text-white/70 mr-1" /><h4 className="text-xs uppercase tracking-wider font-medium text-white/70">关联节点</h4></div>
-                                    <div className="flex flex-wrap gap-1">
-                                        {item.relatedIds.map((relatedId) => {
-                                            const relatedItem = timelineData.find((i) => i.id === relatedId);
-                                            return (
-                                                <Button key={relatedId} variant="outline" size="sm" className="flex items-center h-6 px-2 py-0 text-xs rounded-none border-white/20 bg-transparent hover:bg-white/10 text-white/80 hover:text-white transition-all" onClick={(e) => { e.stopPropagation(); onToggleRelated(relatedId); }}>
-                                                    {relatedItem?.title} <ArrowRight size={8} className="ml-1 text-white/60" />
-                                                </Button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === containerRef.current || e.target === orbitRef.current) {
+      setExpandedItems({});
+      setActiveNodeId(null);
+      setPulseEffect({});
+      setAutoRotate(true);
+    }
+  };
+
+  const toggleItem = (id: number) => {
+    setExpandedItems((prev) => {
+      const newState = { ...prev };
+      Object.keys(newState).forEach((key) => {
+        if (parseInt(key) !== id) { newState[parseInt(key)] = false; }
+      });
+      newState[id] = !prev[id];
+      if (!prev[id]) {
+        setActiveNodeId(id);
+        setAutoRotate(false);
+        const relatedItems = getRelatedItems(id);
+        const newPulseEffect: Record<number, boolean> = {};
+        relatedItems.forEach((relId) => { newPulseEffect[relId] = true; });
+        setPulseEffect(newPulseEffect);
+        centerViewOnNode(id);
+      } else {
+        setActiveNodeId(null);
+        setAutoRotate(true);
+        setPulseEffect({});
+      }
+      return newState;
+    });
+  };
+
+  useEffect(() => {
+    let rotationTimer: NodeJS.Timeout;
+    if (autoRotate) {
+      rotationTimer = setInterval(() => { setRotationAngle((prev) => (prev + 0.3) % 360); }, 50);
+    }
+    return () => clearInterval(rotationTimer);
+  }, [autoRotate]);
+
+  const centerViewOnNode = (nodeId: number) => {
+    if (!nodeRefs.current[nodeId]) return;
+    const nodeIndex = timelineData.findIndex((item) => item.id === nodeId);
+    const totalNodes = timelineData.length;
+    const targetAngle = (nodeIndex / totalNodes) * 360;
+    setRotationAngle(270 - targetAngle);
+  };
+
+  const calculateNodePosition = (index: number, total: number) => {
+    const angle = ((index / total) * 360 + rotationAngle) % 360;
+    const radius = 200;
+    const radian = (angle * Math.PI) / 180;
+    const x = radius * Math.cos(radian);
+    const y = radius * Math.sin(radian);
+    const zIndex = Math.round(100 + 50 * Math.sin(radian));
+    const opacity = Math.max(0.4, Math.min(1, 0.4 + 0.6 * ((1 + Math.sin(radian)) / 2)));
+    return { x, y, zIndex, opacity };
+  };
+
+  const getRelatedItems = (itemId: number): number[] => {
+    const currentItem = timelineData.find((item) => item.id === itemId);
+    return currentItem ? currentItem.relatedIds : [];
+  };
+
+  const isRelatedToActive = (itemId: number): boolean => {
+    if (!activeNodeId) return false;
+    const relatedItems = getRelatedItems(activeNodeId);
+    return relatedItems.includes(itemId);
+  };
+
+  const getStatusStyles = (status: TimelineItem["status"]): string => {
+    switch (status) {
+      case "completed": return "text-white bg-green-500 border-green-500";
+      case "in-progress": return "text-black bg-yellow-400 border-yellow-400";
+      case "pending": return "text-white bg-gray-500/80 border-gray-500/80";
+      default: return "text-white bg-black/40 border-white/50";
+    }
+  };
+
+  return (
+    <div className="relative z-10 w-full h-full flex flex-col items-center justify-center pointer-events-none" ref={containerRef} onClick={handleContainerClick}>
+      <GlobalTimelineStyles />
+      <div className="relative w-full max-w-4xl h-full flex items-center justify-center pointer-events-auto">
+        <div className="absolute w-full h-full flex items-center justify-center" ref={orbitRef} style={{ perspective: "1000px" }}>
+          <div className="absolute w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 via-blue-500 to-teal-500 animate-pulse flex items-center justify-center z-10">
+            <div className="absolute w-20 h-20 rounded-full border border-white/20 animate-ping opacity-70"></div>
+            <div className="absolute w-24 h-24 rounded-full border border-white/10 animate-ping opacity-50" style={{ animationDelay: "0.5s" }}></div>
+            <div className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md"></div>
+          </div>
+          <div className="absolute w-96 h-96 rounded-full border border-white/10"></div>
+          {timelineData.map((item, index) => {
+            const position = calculateNodePosition(index, timelineData.length);
+            const isExpanded = expandedItems[item.id];
+            const isRelated = isRelatedToActive(item.id);
+            const isPulsing = pulseEffect[item.id];
+            const { icon: Icon } = item;
+            const nodeStyle: React.CSSProperties = { transform: `translate(${position.x}px, ${position.y}px)`, zIndex: isExpanded ? 200 : position.zIndex, opacity: isExpanded ? 1 : position.opacity, };
+            return (
+              <div key={item.id} ref={(el) => { nodeRefs.current[item.id] = el; }} className="absolute transition-all duration-700 cursor-pointer" style={nodeStyle} onClick={(e) => { e.stopPropagation(); toggleItem(item.id); }}>
+                <div className={`absolute rounded-full -inset-1 ${isPulsing ? "animate-pulse duration-1000" : ""}`} style={{ background: `radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)`, width: `${item.energy * 0.5 + 40}px`, height: `${item.energy * 0.5 + 40}px`, left: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, top: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, }} ></div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}>
+                  <Icon size={16} />
                 </div>
-                <div
-                    className={`absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 pointer-events-none ${isExpanded ? "opacity-0" : "opacity-100"}`}
-                >
-                    <div className='flex flex-col items-center gap-2'>
-                        <Icon size={16} className={`${isRelated ? 'text-yellow-400' : 'text-white/80'}`} />
-                        <span className={`${isRelated ? 'text-yellow-400' : 'text-white/80'}`}>{item.title}</span>
-                    </div>
-                </div>
-            </Html>
-        </group>
-    );
-};
-
-// ----------------------------------------------------------------------------
-// B.3. 3D菜单轨道控制器
-// ----------------------------------------------------------------------------
-const OrbitalMenu: React.FC<{ timelineData: TimelineItem[] }> = ({ timelineData }) => {
-    const [activeId, setActiveId] = useState<number | null>(null);
-    const getRelatedIds = (id: number | null) => id === null ? [] : timelineData.find(item => item.id === id)?.relatedIds || [];
-    
-    const handleToggleItem = (id: number) => {
-        setActiveId(prevId => (prevId === id ? null : id));
-    };
-
-    const calculateNodePosition = (index: number, total: number, radius: number): [number, number, number] => {
-        const angle = (index / total) * Math.PI * 2;
-        const x = radius * Math.cos(angle);
-        const z = radius * Math.sin(angle);
-        return [x, 0, z];
-    };
-
-    return (
-        <group>
-            <mesh>
-                <sphereGeometry args={[0.3, 32, 32]} />
-                <meshStandardMaterial color="#ff6030" emissive="#ff6030" emissiveIntensity={2} toneMapped={false} />
-            </mesh>
-            <pointLight color="#ff6030" intensity={20} distance={5} />
-
-            {timelineData.map((item, index) => {
-                const position = calculateNodePosition(index, timelineData.length, 6);
-                const relatedIds = getRelatedIds(activeId);
-                return (
-                    <MenuNode
-                        key={item.id}
-                        item={item}
-                        position={position}
-                        isExpanded={activeId === item.id}
-                        isRelated={relatedIds.includes(item.id)}
-                        onClick={() => handleToggleItem(item.id)}
-                        onToggleRelated={handleToggleItem}
-                    />
-                );
-            })}
-        </group>
-    );
-};
+                <div className={`absolute top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}> {item.title} </div>
+                {isExpanded && (
+                  <Card className="absolute top-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
+                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-center">
+                        <Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}> {item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"} </Badge>
+                        <span className="text-xs font-mono text-white/50">{item.date}</span>
+                      </div>
+                      <CardTitle className="text-sm mt-2 text-white">{item.title}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="text-xs text-white/80">
+                      <p>{item.content}</p>
+                      <div className="mt-4 pt-3 border-t border-white/10">
+                        <div className="flex justify-between items-center text-xs mb-1">
+                          <span className="flex items-center"><Zap size={10} className="mr-1" />能量指数</span><span className="font-mono">{item.energy}%</span>
+                        </div>
+                        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500" style={{ width: `${item.energy}%` }}></div>
+                        </div>
+                      </div>
+                      {item.relatedIds.length > 0 && (
+                        <div className="mt-4 pt-3 border-t border-white/10">
+                          <div className="flex items-center mb-2"><Link size={10} className="text-white/70 mr-1" /><h4 className="text-xs uppercase tracking-wider font-medium text-white/70">关联节点</h4></div>
+                          <div className="flex flex-wrap gap-1">
+                            {item.relatedIds.map((relatedId) => {
+                              const relatedItem = timelineData.find((i) => i.id === relatedId);
+                              return (
+                                <Button key={relatedId} variant="outline" size="sm" className="flex items-center h-6 px-2 py-0 text-xs rounded-none border-white/20 bg-transparent hover:bg-white/10 text-white/80 hover:text-white transition-all" onClick={(e) => { e.stopPropagation(); toggleItem(relatedId); }}>
+                                  {relatedItem?.title} <ArrowRight size={8} className="ml-1 text-white/60" />
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 
 // ============================================================================
-// C. 原始场景与页面组件 (已修改以集成新3D菜单)
+// B. 原始场景与页面组件
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// C.1. 类型定义 (原始)
+// B.1. 类型定义 (原始)
 // ----------------------------------------------------------------------------
 interface StarfieldProps { speed?: number; particleCount?: number; warpSpeedActive?: boolean; accelerationDuration?: number; maxSpeed?: number; insideColor: string; outsideColor: string; }
 interface GalaxyParams { count: number; size: number; radius: number; branches: number; spin: number; randomness: number; randomnessPower: number; insideColor: string; outsideColor: string; }
@@ -246,7 +260,7 @@ interface GalaxyProps { params: GalaxyParams; }
 interface SceneProps { galaxyParams: GalaxyParams; }
 
 // ----------------------------------------------------------------------------
-// C.2. 开场动画核心组件 (原始)
+// B.2. 开场动画核心组件 (原始)
 // ----------------------------------------------------------------------------
 const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, warpSpeedActive = false, accelerationDuration = 2, maxSpeed = 50, insideColor, outsideColor }) => {
   const ref = useRef<THREE.Points>(null!); const warpStartTime = useRef(0);
@@ -266,7 +280,7 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
 }
 
 // ----------------------------------------------------------------------------
-// C.3. 主3D场景组件 (已修改)
+// B.3. 主3D场景组件 (原始)
 // ----------------------------------------------------------------------------
 const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     const pointsRef = useRef<THREE.Points>(null!);
@@ -276,8 +290,8 @@ const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
         for (let i = 0; i < params.count; i++) { const i3 = i * 3; const radius = Math.random() * params.radius; const spinAngle = radius * params.spin; const branchAngle = (i % params.branches) / params.branches * Math.PI * 2; const randomX = Math.pow(Math.random(), params.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * radius; const randomY = Math.pow(Math.random(), params.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * radius; const randomZ = Math.pow(Math.random(), params.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * radius; positions[i3] = Math.cos(branchAngle + spinAngle) * radius + randomX; positions[i3 + 1] = randomY; positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ; const mixedColor = colorInside.clone().lerp(colorOutside, radius / params.radius); colors[i3] = mixedColor.r; colors[i3 + 1] = mixedColor.g; colors[i3 + 2] = mixedColor.b; }
         return [positions, colors];
     }, [params]);
-    // NOTE: Self-rotation removed to sync with parent group rotation.
-    return (<points ref={pointsRef}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /><bufferAttribute attach="attributes-color" args={[colors, 3]} /></bufferGeometry><pointsMaterial size={params.size} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} vertexColors /></points>);
+    useFrame((_, delta) => { if (pointsRef.current) { pointsRef.current.rotation.y += delta * 0.05; } });
+    return (<points ref={pointsRef} rotation-x={-0.4} position-y={-2}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /><bufferAttribute attach="attributes-color" args={[colors, 3]} /></bufferGeometry><pointsMaterial size={params.size} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} vertexColors /></points>);
 };
 const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: THREE.Vector3; size: number; duration: number; onImpact: () => void; onFaded: (id: string) => void;}> = ({ id, startPosition, controlPoint, size, duration, onImpact, onFaded }) => {
     const meshRef = useRef<THREE.Mesh>(null!); const materialRef = useRef<THREE.MeshBasicMaterial>(null!); const [status, setStatus] = useState<'flying' | 'dying' | 'dead'>('flying'); const [finalPosition, setFinalPosition] = useState<THREE.Vector3 | null>(null); const curve = useMemo(() => new THREE.QuadraticBezierCurve3(startPosition, controlPoint, new THREE.Vector3(0, -2, 0)), [startPosition, controlPoint]); const startTime = useRef(Date.now());
@@ -293,21 +307,14 @@ const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse
 };
 
 const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
-    const groupRef = useRef<THREE.Group>(null!);
     const bloomRef = useRef<{ intensity: number }>(null!);
     const triggerPulse = () => { if (bloomRef.current) { bloomRef.current.intensity = 5; } setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = 1.2; } }, 250); };
-    useFrame((_, delta) => { if (groupRef.current) { groupRef.current.rotation.y += delta * 0.02; } });
     return (
-        <div className="absolute inset-0 w-full h-full z-0 pointer-events-auto">
-            <GlobalTimelineStyles />
-            <Canvas camera={{ position: [0, 4, 15], fov: 60 }}>
-                <ambientLight intensity={0.2} />
-                <group ref={groupRef} rotation-x={-0.4} position-y={-2}>
-                    <Galaxy params={galaxyParams} />
-                    <OrbitalMenu timelineData={timelineData} />
-                </group>
+        <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
+            <Canvas camera={{ position: [0, 2, 15], fov: 60 }}>
+                <Galaxy params={galaxyParams} />
                 <CometsController triggerPulse={triggerPulse} />
-                <OrbitControls enableZoom={true} enablePan={true} enableRotate={true} autoRotate={false} maxPolarAngle={Math.PI / 1.5} minPolarAngle={Math.PI / 3} />
+                <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate={true} autoRotateSpeed={0.2} />
                 <EffectComposer>
                     <Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={1.2} />
                 </EffectComposer>
@@ -317,7 +324,7 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
 };
 
 // ----------------------------------------------------------------------------
-// C.4. 主页面和状态控制器 (已修改)
+// B.4. 主页面和状态控制器
 // ----------------------------------------------------------------------------
 export default function Page() {
     const [isClient, setIsClient] = useState(false);
@@ -328,11 +335,24 @@ export default function Page() {
 
     return (
         <div className="relative w-full h-screen bg-[#000] text-white overflow-hidden" style={{ background: 'linear-gradient(to bottom, #000000, #030615)' }}>
-            {isClient && !mainContentVisible && ( <OpeningAnimation onAnimationFinish={handleAnimationFinish} galaxyColors={{ insideColor: galaxyParams.insideColor, outsideColor: galaxyParams.outsideColor }} /> )}
+            
+            {isClient && !mainContentVisible && (
+                <OpeningAnimation 
+                    onAnimationFinish={handleAnimationFinish}
+                    galaxyColors={{ insideColor: galaxyParams.insideColor, outsideColor: galaxyParams.outsideColor }}
+                />
+            )}
+
             <AnimatePresence>
                 {mainContentVisible && (
-                    <motion.div className="w-full h-full" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}>
+                    <motion.div
+                        className="w-full h-full"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 1.5, ease: "easeInOut" }}
+                    >
                         <Scene galaxyParams={galaxyParams} />
+                        <RadialOrbitalTimeline />
                     </motion.div>
                 )}
             </AnimatePresence>
