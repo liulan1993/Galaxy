@@ -3,10 +3,44 @@
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Trail } from '@react-three/drei';
-import { EffectComposer, Bloom, MotionBlur } from '@react-three/postprocessing';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from "framer-motion";
+
+// ============================================================================
+// 0. 类型定义
+// ============================================================================
+interface StarfieldProps {
+  speed?: number;
+  particleCount?: number;
+  warpSpeedActive?: boolean;
+  accelerationDuration?: number;
+  maxSpeed?: number;
+  insideColor: string;
+  outsideColor: string;
+}
+
+interface GalaxyParams {
+  count: number;
+  size: number;
+  radius: number;
+  branches: number;
+  spin: number;
+  randomness: number;
+  randomnessPower: number;
+  insideColor: string;
+  outsideColor: string;
+}
+
+interface GalaxyProps {
+    params: GalaxyParams;
+}
+
+interface SceneProps {
+    galaxyParams: GalaxyParams;
+}
+
 
 // ============================================================================
 // 1. 开场动画核心组件 (从 chuansuo.tsx 合并并修改)
@@ -14,16 +48,8 @@ import { motion, AnimatePresence } from "framer-motion";
 
 /**
  * 星场/粒子穿梭动画组件
- * @param {object} props - 组件属性
- * @param {number} [props.speed=2] - 默认速度
- * @param {number} [props.particleCount=2500] - 粒子数量
- * @param {boolean} [props.warpSpeedActive=false] - 是否激活曲速（加速）效果
- * @param {number} [props.accelerationDuration=2] - 加速到最大速度所需时间（秒）
- * @param {number} [props.maxSpeed=50] - 曲速下的最大速度
- * @param {string} props.insideColor - 粒子核心区域颜色
- * @param {string} props.outsideColor - 粒子外围区域颜色
  */
-const Starfield = ({
+const Starfield: React.FC<StarfieldProps> = ({
   speed = 2,
   particleCount = 2500,
   warpSpeedActive = false,
@@ -299,9 +325,14 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
                             insideColor={galaxyColors.insideColor}
                             outsideColor={galaxyColors.outsideColor}
                         />
-                        {/* 拖尾效果: 仅在曲速飞行时激活。使用MotionBlur替代Afterimage来修复导入错误 */}
+                        {/* 拖尾效果: 使用动态辉光效果替代MotionBlur来修复导入错误并模拟高速穿梭 */}
                         <EffectComposer>
-                           {animationState === 'warping' && <MotionBlur />}
+                           <Bloom
+                             luminanceThreshold={0.1}
+                             luminanceSmoothing={0.9}
+                             height={300}
+                             intensity={animationState === 'warping' ? 20.0 : 0.5} // 曲速时急剧增强辉光
+                           />
                         </EffectComposer>
                     </Canvas>
                 </motion.div>
@@ -391,7 +422,7 @@ const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse
     return <>{comets.map(comet => <Comet key={comet.id} {...comet} onImpact={triggerPulse} onFaded={handleFaded}/>)}</>;
 };
 
-const Galaxy = ({ params }) => {
+const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     const pointsRef = useRef<THREE.Points>(null!);
     const [positions, colors] = useMemo(() => {
         const positions = new Float32Array(params.count * 3);
@@ -428,7 +459,7 @@ const Galaxy = ({ params }) => {
     );
 };
 
-const Scene = ({ galaxyParams }) => {
+const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     const bloomRef = useRef<{ intensity: number }>(null!);
     const triggerPulse = () => {
         if (bloomRef.current) { bloomRef.current.intensity = 5; }
@@ -456,7 +487,7 @@ export default function Page() {
     const [mainContentVisible, setMainContentVisible] = useState(false);
     const [isClient, setIsClient] = useState(false);
 
-    const galaxyParams = useMemo(() => ({
+    const galaxyParams: GalaxyParams = useMemo(() => ({
         count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
         randomnessPower: 3, insideColor: '#ff6030', outsideColor: '#1b3984'
     }), []);
