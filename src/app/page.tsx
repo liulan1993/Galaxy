@@ -51,7 +51,7 @@ interface SceneProps {
  */
 const Starfield: React.FC<StarfieldProps> = ({
   speed = 2,
-  particleCount = 2500,
+  particleCount = 1500,
   warpSpeedActive = false,
   accelerationDuration = 2,
   maxSpeed = 50,
@@ -271,92 +271,83 @@ TextShineEffect.displayName = "TextShineEffect";
 /**
  * 开场动画主控制器
  */
-const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; } }> = ({ onAnimationFinish, galaxyColors }) => {
+const OpeningAnimation: React.FC<{ 
+    onAnimationFinish: () => void; 
+    onWarpStart: () => void; // 新增回调，在曲速开始时触发
+    galaxyColors: { insideColor: string; outsideColor: string; } 
+}> = ({ onAnimationFinish, onWarpStart, galaxyColors }) => {
   const [animationState, setAnimationState] = useState('initial');
-  const [isAnimationVisible, setIsAnimationVisible] = useState(true);
-
-  useEffect(() => {
-    const hasVisited = sessionStorage.getItem('hasVisitedHomePage');
-    if (hasVisited) {
-      setAnimationState('finished');
-      setIsAnimationVisible(false);
-      onAnimationFinish();
-    }
-  }, [onAnimationFinish]);
-
+  
   const handleEnter = () => {
       if (animationState === 'initial') {
           sessionStorage.setItem('hasVisitedHomePage', 'true');
           setAnimationState('textFading'); 
-          setTimeout(() => setAnimationState('warping'), 1500); 
+          
+          // 文本淡出后，开始曲速穿梭，并通知父组件
+          setTimeout(() => {
+              setAnimationState('warping');
+              onWarpStart(); // 触发主内容开始淡入
+          }, 1500); 
+
+          // 动画整体结束
           setTimeout(() => {
               setAnimationState('finished');
-              setIsAnimationVisible(false); 
-              onAnimationFinish();
-          }, 1500 + 2500);
+              onAnimationFinish(); // 触发开场动画自身淡出
+          }, 1500 + 1500);
       }
   };
-  
-  if (animationState === 'finished' && !isAnimationVisible) {
-      return null;
-  }
 
   return (
-    <AnimatePresence>
-        {isAnimationVisible && (
-            <motion.div
-                key="animation-wrapper"
-                className="fixed inset-0 z-[100] bg-black"
-                exit={{ 
-                    opacity: 0, 
-                    transition: { duration: 1.0, delay: 0.5 } 
-                }}
-            >
-                <motion.div
-                    className="absolute inset-0 flex items-center justify-center z-10"
-                    animate={{
-                        opacity: animationState === 'initial' || animationState === 'textFading' ? 1 : 0,
-                        scale: animationState === 'textFading' ? 0.8 : 1,
-                    }}
-                    transition={{ duration: 1.5, ease: "easeInOut" }}
-                >
-                    <div className="w-full max-w-2xl px-4">
-                        <TextShineEffect 
-                            text="Apex" 
-                            subtitle="轻触，开启非凡"
-                            onClick={handleEnter} 
-                        />
-                    </div>
-                </motion.div>
-                
-                <motion.div
-                    className="absolute inset-0 pointer-events-none"
-                    initial={{ opacity: 0 }}
-                    animate={{
-                        opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0,
-                    }}
-                    transition={{ duration: 2.0, ease: "easeIn" }}
-                >
-                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-                        <Starfield 
-                            warpSpeedActive={animationState === 'warping'} 
-                            insideColor={galaxyColors.insideColor}
-                            outsideColor={galaxyColors.outsideColor}
-                        />
-                        {/* 拖尾效果: 通过在曲速状态下极大地增强辉光效果，来模拟粒子拖尾 */}
-                        <EffectComposer>
-                           <Bloom
-                             luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1} // 曲速时降低阈值，让更多粒子参与辉光
-                             luminanceSmoothing={0.8}
-                             height={300}
-                             intensity={animationState === 'warping' ? 30.0 : 0.5} // 曲速时急剧增强辉光强度，形成视觉拖尾
-                           />
-                        </EffectComposer>
-                    </Canvas>
-                </motion.div>
-            </motion.div>
-        )}
-    </AnimatePresence>
+    <motion.div
+        key="animation-wrapper"
+        className="fixed inset-0 z-[100] bg-black"
+        exit={{ 
+            opacity: 0, 
+            transition: { duration: 1.0, delay: 0.5 } 
+        }}
+    >
+        <motion.div
+            className="absolute inset-0 flex items-center justify-center z-10"
+            animate={{
+                opacity: animationState === 'initial' || animationState === 'textFading' ? 1 : 0,
+                scale: animationState === 'textFading' ? 0.8 : 1,
+            }}
+            transition={{ duration: 1.5, ease: "easeInOut" }}
+        >
+            <div className="w-full max-w-2xl px-4">
+                <TextShineEffect 
+                    text="Apex" 
+                    subtitle="轻触，开启非凡"
+                    onClick={handleEnter} 
+                />
+            </div>
+        </motion.div>
+        
+        <motion.div
+            className="absolute inset-0 pointer-events-none"
+            initial={{ opacity: 0 }}
+            animate={{
+                opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0,
+            }}
+            transition={{ duration: 2.0, ease: "easeIn" }}
+        >
+            <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+                <Starfield 
+                    warpSpeedActive={animationState === 'warping'} 
+                    insideColor={galaxyColors.insideColor}
+                    outsideColor={galaxyColors.outsideColor}
+                />
+                <EffectComposer>
+                   <Bloom
+                     luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1}
+                     luminanceSmoothing={0.8}
+                     height={300}
+                     intensity={animationState === 'warping' ? 30.0 : 0.5}
+                   />
+                </EffectComposer>
+            </Canvas>
+        </motion.div>
+    </motion.div>
   );
 }
 OpeningAnimation.displayName = "OpeningAnimation";
@@ -502,7 +493,8 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
 // 3. 最终的主页面组件
 // ============================================================================
 export default function Page() {
-    const [mainContentVisible, setMainContentVisible] = useState(false);
+    const [showOpeningAnimation, setShowOpeningAnimation] = useState(true);
+    const [showMainContent, setShowMainContent] = useState(false);
     const [isClient, setIsClient] = useState(false);
 
     const galaxyParams: GalaxyParams = useMemo(() => ({
@@ -513,40 +505,47 @@ export default function Page() {
     useEffect(() => {
         setIsClient(true);
         if (sessionStorage.getItem('hasVisitedHomePage')) {
-            setMainContentVisible(true);
+            setShowOpeningAnimation(false);
+            setShowMainContent(true);
         }
     }, []);
 
+    // 开场动画进入曲速时，开始显示主内容
+    const handleWarpStart = () => {
+        setShowMainContent(true);
+    };
+
+    // 开场动画完全结束后，将其从DOM中移除
     const handleAnimationFinish = () => {
-        setTimeout(() => setMainContentVisible(true), 500);
+        setShowOpeningAnimation(false);
     };
 
     return (
         <div className="relative w-full h-screen bg-[#000] text-white overflow-hidden" style={{ background: 'linear-gradient(to bottom, #000000, #030615)' }}>
             
-            {/* 开场动画: 仅在客户端渲染，并传入星系颜色 */}
-            {isClient && !mainContentVisible && (
-                <OpeningAnimation 
-                    onAnimationFinish={handleAnimationFinish}
-                    galaxyColors={{ 
-                        insideColor: galaxyParams.insideColor, 
-                        outsideColor: galaxyParams.outsideColor 
-                    }}
-                />
-            )}
-
-            {/* 主场景和UI: 动画结束后显示 */}
             <AnimatePresence>
-                {mainContentVisible && (
+                {isClient && showOpeningAnimation && (
+                    <OpeningAnimation 
+                        onWarpStart={handleWarpStart}
+                        onAnimationFinish={handleAnimationFinish}
+                        galaxyColors={{ 
+                            insideColor: galaxyParams.insideColor, 
+                            outsideColor: galaxyParams.outsideColor 
+                        }}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {isClient && showMainContent && (
                     <motion.div
                         className="w-full h-full"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 1.5, ease: "easeInOut" }}
+                        transition={{ duration: 3.0, ease: "easeInOut" }} // 延长淡入时间，使其更平滑
                     >
                         <Scene galaxyParams={galaxyParams} />
                         <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-center p-8 pointer-events-auto">
-                           {/* 在这里可以放置您的网站主内容 */}
                            <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
                                 欢迎来到星尘之间
                            </h1>
