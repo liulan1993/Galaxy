@@ -51,7 +51,7 @@ interface SceneProps {
  */
 const Starfield: React.FC<StarfieldProps> = ({
   speed = 2,
-  particleCount = 1500,
+  particleCount = 2500,
   warpSpeedActive = false,
   accelerationDuration = 2,
   maxSpeed = 50,
@@ -293,7 +293,7 @@ const OpeningAnimation: React.FC<{
           setTimeout(() => {
               setAnimationState('finished');
               onAnimationFinish(); // 触发开场动画自身淡出
-          }, 1500 + 1500);
+          }, 1500 + 2500);
       }
   };
 
