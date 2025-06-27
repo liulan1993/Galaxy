@@ -61,6 +61,22 @@ const Starfield: React.FC<StarfieldProps> = ({
   const ref = useRef<THREE.Points>(null);
   const warpStartTime = useRef(0);
 
+  // 通过Canvas API动态创建圆形纹理
+  const particleTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const context = canvas.getContext('2d');
+    if (context) {
+        context.beginPath();
+        context.arc(32, 32, 30, 0, 2 * Math.PI); // 绘制圆形
+        context.fillStyle = 'white';
+        context.fill();
+    }
+    return new THREE.CanvasTexture(canvas);
+  }, []);
+
+
   // 初始化粒子位置和颜色
   const [positions, colors] = useMemo(() => {
     const particles = new Float32Array(particleCount * 3);
@@ -133,11 +149,13 @@ const Starfield: React.FC<StarfieldProps> = ({
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.015}
+        size={0.05} // 稍微增大粒子尺寸以适应圆形纹理
+        sizeAttenuation={true} // 使远处的粒子变小
+        map={particleTexture} // 应用圆形纹理
         transparent
         depthWrite={false}
         blending={THREE.AdditiveBlending}
-        vertexColors={true} // 启用顶点颜色
+        vertexColors={true}
       />
     </points>
   );
@@ -325,13 +343,13 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
                             insideColor={galaxyColors.insideColor}
                             outsideColor={galaxyColors.outsideColor}
                         />
-                        {/* 拖尾效果: 使用动态辉光效果替代MotionBlur来修复导入错误并模拟高速穿梭 */}
+                        {/* 拖尾效果: 通过在曲速状态下极大地增强辉光效果，来模拟粒子拖尾 */}
                         <EffectComposer>
                            <Bloom
-                             luminanceThreshold={0.1}
-                             luminanceSmoothing={0.9}
+                             luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1} // 曲速时降低阈值，让更多粒子参与辉光
+                             luminanceSmoothing={0.8}
                              height={300}
-                             intensity={animationState === 'warping' ? 20.0 : 0.5} // 曲速时急剧增强辉光
+                             intensity={animationState === 'warping' ? 30.0 : 0.5} // 曲速时急剧增强辉光强度，形成视觉拖尾
                            />
                         </EffectComposer>
                     </Canvas>
