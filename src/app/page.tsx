@@ -48,7 +48,7 @@ interface SceneProps {
 
 const Starfield: React.FC<StarfieldProps> = ({
   speed = 2,
-  particleCount = 2500,
+  particleCount = 1500,
   warpSpeedActive = false,
   accelerationDuration = 2,
   maxSpeed = 50,
@@ -178,7 +178,7 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
           setTimeout(() => {
               setIsAnimationVisible(false);
               onAnimationFinish();
-          }, 1500 + 2500);
+          }, 1500 + 1500);
       }
   };
 
