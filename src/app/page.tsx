@@ -60,9 +60,10 @@ const Starfield: React.FC<StarfieldProps> = ({
 }) => {
   const ref = useRef<THREE.Points>(null);
   const warpStartTime = useRef(0);
+  const [particleTexture, setParticleTexture] = useState<THREE.CanvasTexture | null>(null);
 
-  // 通过Canvas API动态创建圆形纹理
-  const particleTexture = useMemo(() => {
+  // 修复: 将Canvas纹理创建移至useEffect，确保只在客户端执行
+  useEffect(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 64;
     canvas.height = 64;
@@ -73,7 +74,7 @@ const Starfield: React.FC<StarfieldProps> = ({
         context.fillStyle = 'white';
         context.fill();
     }
-    return new THREE.CanvasTexture(canvas);
+    setParticleTexture(new THREE.CanvasTexture(canvas));
   }, []);
 
 
@@ -135,6 +136,9 @@ const Starfield: React.FC<StarfieldProps> = ({
       ref.current.geometry.attributes.position.needsUpdate = true;
     }
   });
+
+  // 仅当纹理加载后才渲染粒子
+  if (!particleTexture) return null;
 
   return (
     <points ref={ref}>
