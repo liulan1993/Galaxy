@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useMemo, useState, useEffect, Suspense } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Trail } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -35,16 +35,17 @@ interface GalaxyParams {
 
 interface GalaxyProps {
     params: GalaxyParams;
-    opacity: number;
 }
 
+interface SceneProps {
+    galaxyParams: GalaxyParams;
+}
+
+
 // ============================================================================
-// 1. 3D 视觉组件
+// 1. 开场动画核心组件
 // ============================================================================
 
-/**
- * 星场/粒子穿梭动画组件
- */
 const Starfield: React.FC<StarfieldProps> = ({
   speed = 2,
   particleCount = 2500,
@@ -55,13 +56,13 @@ const Starfield: React.FC<StarfieldProps> = ({
   outsideColor,
 }) => {
   const ref = useRef<THREE.Points>(null!);
-  const materialRef = useRef<THREE.PointsMaterial>(null!);
   const warpStartTime = useRef(0);
   const [particleTexture, setParticleTexture] = useState<THREE.CanvasTexture | null>(null);
 
   useEffect(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 64; canvas.height = 64;
+    canvas.width = 64;
+    canvas.height = 64;
     const context = canvas.getContext('2d');
     if (context) {
         context.beginPath();
@@ -92,7 +93,9 @@ const Starfield: React.FC<StarfieldProps> = ({
   }, [particleCount, insideColor, outsideColor]);
 
   useEffect(() => {
-    if (warpSpeedActive) warpStartTime.current = Date.now();
+    if (warpSpeedActive) {
+      warpStartTime.current = Date.now();
+    }
   }, [warpSpeedActive]);
 
   useFrame((state, delta) => {
@@ -110,9 +113,9 @@ const Starfield: React.FC<StarfieldProps> = ({
       for (let i = 0; i < particleCount; i++) {
         positions[i * 3 + 2] += delta * currentSpeed;
         if (positions[i * 3 + 2] > 5) {
-          positions[i * 3 + 2] = -5;
           positions[i * 3] = (Math.random() - 0.5) * 10;
           positions[i * 3 + 1] = (Math.random() - 0.5) * 10;
+          positions[i * 3 + 2] = -5;
         }
       }
       ref.current.geometry.attributes.position.needsUpdate = true;
@@ -124,11 +127,10 @@ const Starfield: React.FC<StarfieldProps> = ({
   return (
     <points ref={ref}>
       <bufferGeometry>
-        <bufferAttribute attach="attributes-position" args={[positions, 3]}/>
-        <bufferAttribute attach="attributes-color" args={[colors, 3]}/>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-color" args={[colors, 3]} />
       </bufferGeometry>
       <pointsMaterial
-        ref={materialRef}
         size={0.05}
         sizeAttenuation
         map={particleTexture}
@@ -141,10 +143,105 @@ const Starfield: React.FC<StarfieldProps> = ({
   );
 };
 
-const Galaxy: React.FC<GalaxyProps> = ({ params, opacity }) => {
-    const pointsRef = useRef<THREE.Points>(null!);
-    const materialRef = useRef<THREE.PointsMaterial>(null!);
+const TextShineEffect = ({
+  text,
+  subtitle,
+  onClick
+}: {
+  text: string;
+  subtitle?: string;
+  onClick?: () => void;
+}) => {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
+        <defs>
+            <linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030" /><stop offset="50%" stopColor="#ffffff" /><stop offset="100%" stopColor="#1b3984" /></linearGradient>
+            <motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}><stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="black" /></motion.radialGradient>
+            <mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)" /></mask>
+        </defs>
+        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
+        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
+        {subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text></>)}
+    </svg>
+  );
+};
 
+const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; } }> = ({ onAnimationFinish, galaxyColors }) => {
+  const [animationState, setAnimationState] = useState('initial');
+  const [isAnimationVisible, setIsAnimationVisible] = useState(true);
+
+  const handleEnter = () => {
+      if (animationState === 'initial') {
+          sessionStorage.setItem('hasVisitedHomePage', 'true');
+          setAnimationState('textFading');
+          setTimeout(() => setAnimationState('warping'), 1500);
+          setTimeout(() => {
+              setIsAnimationVisible(false);
+              onAnimationFinish();
+          }, 1500 + 2500);
+      }
+  };
+
+  return (
+    <AnimatePresence>
+        {isAnimationVisible && (
+            <motion.div
+                key="animation-wrapper"
+                className="fixed inset-0 z-[100] bg-black"
+                exit={{ opacity: 0, transition: { duration: 1.0, delay: 0.5 } }}
+            >
+                <motion.div
+                    className="absolute inset-0 flex items-center justify-center z-10"
+                    animate={{
+                        opacity: animationState === 'initial' || animationState === 'textFading' ? 1 : 0,
+                        scale: animationState === 'textFading' ? 0.8 : 1,
+                    }}
+                    transition={{ duration: 1.5, ease: "easeInOut" }}
+                >
+                    <div className="w-full max-w-2xl px-4">
+                        <TextShineEffect
+                            text="Apex"
+                            subtitle="轻触，开启非凡"
+                            onClick={handleEnter}
+                        />
+                    </div>
+                </motion.div>
+                <motion.div
+                    className="absolute inset-0 pointer-events-none"
+                    initial={{ opacity: 0 }}
+                    animate={{
+                        opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0,
+                    }}
+                    transition={{ duration: 2.0, ease: "easeIn" }}
+                >
+                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
+                        <Starfield
+                            warpSpeedActive={animationState === 'warping'}
+                            insideColor={galaxyColors.insideColor}
+                            outsideColor={galaxyColors.outsideColor}
+                        />
+                        <EffectComposer>
+                           <Bloom
+                             luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1}
+                             luminanceSmoothing={0.8}
+                             height={300}
+                             intensity={animationState === 'warping' ? 30.0 : 0.5}
+                           />
+                        </EffectComposer>
+                    </Canvas>
+                </motion.div>
+            </motion.div>
+        )}
+    </AnimatePresence>
+  );
+}
+
+// ============================================================================
+// 2. 主场景组件
+// ============================================================================
+
+const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
+    const pointsRef = useRef<THREE.Points>(null!);
     const [positions, colors] = useMemo(() => {
         const positions = new Float32Array(params.count * 3);
         const colors = new Float32Array(params.count * 3);
@@ -167,15 +264,7 @@ const Galaxy: React.FC<GalaxyProps> = ({ params, opacity }) => {
         return [positions, colors];
     }, [params]);
 
-    useFrame((_, delta) => {
-        if (pointsRef.current) {
-            pointsRef.current.rotation.y += delta * 0.05;
-        }
-        if (materialRef.current) {
-            // 平滑地过渡透明度
-            materialRef.current.opacity = THREE.MathUtils.lerp(materialRef.current.opacity, opacity, 0.05);
-        }
-    });
+    useFrame((_, delta) => { if (pointsRef.current) { pointsRef.current.rotation.y += delta * 0.05; } });
 
     return (
         <points ref={pointsRef} rotation-x={-0.4} position-y={-2}>
@@ -183,7 +272,7 @@ const Galaxy: React.FC<GalaxyProps> = ({ params, opacity }) => {
                 <bufferAttribute attach="attributes-position" args={[positions, 3]} />
                 <bufferAttribute attach="attributes-color" args={[colors, 3]} />
             </bufferGeometry>
-            <pointsMaterial ref={materialRef} size={params.size} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} vertexColors transparent opacity={0} />
+            <pointsMaterial size={params.size} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} vertexColors />
         </points>
     );
 };
@@ -215,12 +304,11 @@ const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: T
     return null;
 };
 
-const CometsController: React.FC<{ triggerPulse: () => void; isVisible: boolean }> = ({ triggerPulse, isVisible }) => {
+const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse }) => {
     const [comets, setComets] = useState<Omit<React.ComponentProps<typeof Comet>, 'onImpact' | 'onFaded' | 'key'>[]>([]);
     const handleFaded = (cometId: string) => setComets(prev => prev.filter(c => c.id !== cometId));
 
     useEffect(() => {
-        if (!isVisible) return;
         const timeouts: NodeJS.Timeout[] = [];
         const scheduleComets = () => {
             for (let i = 0; i < 8; i++) {
@@ -240,38 +328,39 @@ const CometsController: React.FC<{ triggerPulse: () => void; isVisible: boolean 
         scheduleComets();
         const intervalId = setInterval(scheduleComets, 15000);
         return () => { clearInterval(intervalId); timeouts.forEach(clearTimeout); };
-    }, [isVisible]);
+    }, []);
 
-    if (!isVisible) return null;
     return <>{comets.map(comet => <Comet key={comet.id} {...comet} onImpact={triggerPulse} onFaded={handleFaded}/>)}</>;
 };
 
-// ============================================================================
-// 2. UI 组件
-// ============================================================================
 
-const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?: string; onClick?: () => void; }) => (
-    <svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
-        <defs>
-            <linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030" /><stop offset="50%" stopColor="#ffffff" /><stop offset="100%" stopColor="#1b3984" /></linearGradient>
-            <motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}><stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="black" /></motion.radialGradient>
-            <mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)" /></mask>
-        </defs>
-        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
-        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
-        {subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text></>)}
-    </svg>
-);
+const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
+    const bloomRef = useRef<{ intensity: number }>(null!);
+    const triggerPulse = () => {
+        if (bloomRef.current) { bloomRef.current.intensity = 5; }
+        setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = 1.2; } }, 250);
+    };
 
+    return (
+        <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
+            <Canvas camera={{ position: [0, 2, 15], fov: 60 }}>
+                <Galaxy params={galaxyParams} />
+                <CometsController triggerPulse={triggerPulse} />
+                <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate={true} autoRotateSpeed={0.2} />
+                <EffectComposer>
+                    <Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={1.2} />
+                </EffectComposer>
+            </Canvas>
+        </div>
+    );
+};
 
 // ============================================================================
 // 3. 主页面和状态控制器
 // ============================================================================
 export default function Page() {
     const [isClient, setIsClient] = useState(false);
-    // 统一的动画状态机: initial -> textFading -> warping -> finished
-    const [animationState, setAnimationState] = useState('initial');
-    const bloomRef = useRef<{ intensity: number }>(null!);
+    const [mainContentVisible, setMainContentVisible] = useState(false);
 
     const galaxyParams: GalaxyParams = useMemo(() => ({
         count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
@@ -281,116 +370,44 @@ export default function Page() {
     useEffect(() => {
         setIsClient(true);
         if (sessionStorage.getItem('hasVisitedHomePage')) {
-            setAnimationState('finished');
+            setMainContentVisible(true);
         }
     }, []);
 
-    const handleEnter = () => {
-        if (animationState === 'initial') {
-            sessionStorage.setItem('hasVisitedHomePage', 'true');
-            setAnimationState('textFading');
-            setTimeout(() => setAnimationState('warping'), 1500);
-            setTimeout(() => setAnimationState('finished'), 1500 + 2500);
-        }
+    const handleAnimationFinish = () => {
+        setTimeout(() => {
+            setMainContentVisible(true);
+        }, 500);
     };
-    
-    const triggerPulse = () => {
-        if (bloomRef.current) {
-            bloomRef.current.intensity = 5;
-            setTimeout(() => { if (bloomRef.current) bloomRef.current.intensity = 1.2; }, 250);
-        }
-    };
-    
-    // 根据动画状态决定辉光效果强度
-    const bloomIntensity = useMemo(() => {
-        if (animationState === 'warping') return 30.0;
-        if (animationState === 'finished') return 1.2;
-        return 0.5;
-    }, [animationState]);
-
-    const luminanceThreshold = animationState === 'warping' ? 0.0 : (animationState === 'finished' ? 0 : 0.1);
 
     return (
         <div className="relative w-full h-screen bg-[#000] text-white overflow-hidden" style={{ background: 'linear-gradient(to bottom, #000000, #030615)' }}>
             
-            {/* 统一的 Canvas，承载所有3D内容 */}
-            <div className="absolute inset-0 z-0">
-                {isClient && (
-                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-                        <Suspense fallback={null}>
-                            {/* 开场穿梭粒子，在动画结束后消失 */}
-                            {animationState !== 'finished' && (
-                                <Starfield 
-                                    warpSpeedActive={animationState === 'warping'} 
-                                    insideColor={galaxyParams.insideColor}
-                                    outsideColor={galaxyParams.outsideColor}
-                                />
-                            )}
+            {isClient && !mainContentVisible && (
+                <OpeningAnimation 
+                    onAnimationFinish={handleAnimationFinish}
+                    galaxyColors={{ 
+                        insideColor: galaxyParams.insideColor, 
+                        outsideColor: galaxyParams.outsideColor 
+                    }}
+                />
+            )}
 
-                            {/* 主场景星系，在穿梭时开始浮现 */}
-                            <Galaxy params={galaxyParams} opacity={animationState === 'warping' || animationState === 'finished' ? 1 : 0} />
-                            
-                            {/* 主场景彗星，在动画结束后出现 */}
-                            <CometsController triggerPulse={triggerPulse} isVisible={animationState === 'finished'} />
-                        </Suspense>
-
-                        {/* 主场景的相机控制器，在动画结束后激活 */}
-                        {animationState === 'finished' && <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate={true} autoRotateSpeed={0.2} />}
-
-                        {/* 后期处理效果 */}
-                        <EffectComposer>
-                           <Bloom
-                             ref={bloomRef}
-                             luminanceThreshold={luminanceThreshold}
-                             luminanceSmoothing={0.8}
-                             height={300}
-                             intensity={bloomIntensity}
-                           />
-                        </EffectComposer>
-                    </Canvas>
-                )}
-            </div>
-
-            {/* UI 层 */}
             <AnimatePresence>
-                {/* 初始文本和点击区域 */}
-                {(animationState === 'initial' || animationState === 'textFading') && (
-                     <motion.div
-                        key="intro-text"
-                        className="absolute inset-0 flex items-center justify-center z-10"
-                        initial={{ opacity: 1 }}
-                        animate={{
-                            opacity: animationState === 'textFading' ? 0 : 1,
-                            scale: animationState === 'textFading' ? 0.8 : 1,
-                        }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 1.5, ease: "easeInOut" }}
-                    >
-                        <div className="w-full max-w-2xl px-4">
-                            <TextShineEffect 
-                                text="Apex" 
-                                subtitle="轻触，开启非凡"
-                                onClick={handleEnter} 
-                            />
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
-            
-            <AnimatePresence>
-                {/* 主UI内容，在穿梭时开始浮现 */}
-                {(animationState === 'warping' || animationState === 'finished') && (
+                {mainContentVisible && (
                     <motion.div
-                        key="main-ui"
-                        className="relative z-10 w-full h-full flex flex-col items-center justify-center text-center p-8 pointer-events-auto"
+                        className="w-full h-full"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        transition={{ duration: 3.0, ease: "easeInOut" }}
+                        transition={{ duration: 1.5, ease: "easeInOut" }}
                     >
-                       <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
-                            欢迎来到星尘之间
-                       </h1>
-                       <p className="text-xl text-neutral-300">主内容已加载完毕。</p>
+                        <Scene galaxyParams={galaxyParams} />
+                        <div className="relative z-10 w-full h-full flex flex-col items-center justify-center text-center p-8 pointer-events-auto">
+                           <h1 className="text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 to-violet-500">
+                                欢迎来到星尘之间
+                           </h1>
+                           <p className="text-xl text-neutral-300">主内容已加载完毕。</p>
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
