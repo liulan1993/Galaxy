@@ -2,8 +2,8 @@
 
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Trail, useFBO } from '@react-three/drei';
-import { EffectComposer, Bloom, Afterimage } from '@react-three/postprocessing';
+import { OrbitControls, Trail } from '@react-three/drei';
+import { EffectComposer, Bloom, MotionBlur } from '@react-three/postprocessing';
 import * as THREE from 'three';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from "framer-motion";
@@ -299,12 +299,9 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
                             insideColor={galaxyColors.insideColor}
                             outsideColor={galaxyColors.outsideColor}
                         />
-                        {/* 拖尾效果: 仅在曲速飞行时激活 */}
+                        {/* 拖尾效果: 仅在曲速飞行时激活。使用MotionBlur替代Afterimage来修复导入错误 */}
                         <EffectComposer>
-                           <Afterimage
-                                enabled={animationState === 'warping'}
-                                damp={0.92} // 拖尾的强度，值越小拖尾越长
-                           />
+                           {animationState === 'warping' && <MotionBlur />}
                         </EffectComposer>
                     </Canvas>
                 </motion.div>
