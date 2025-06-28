@@ -231,7 +231,7 @@ function RadialOrbitalTimeline() {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    const radius = 130;
+    const radius = 110;
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian);
     const y = radius * Math.sin(radian);
@@ -268,7 +268,6 @@ function RadialOrbitalTimeline() {
     >
       <GlobalTimelineStyles />
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        {/* 修改点: 移动到屏幕最右下角 */}
         <div 
           className="absolute w-full h-full flex items-center justify-center" 
           ref={orbitRef} 
@@ -286,7 +285,14 @@ function RadialOrbitalTimeline() {
           >
             <div className="w-5 h-5 rounded-full bg-white opacity-95 blur-sm"></div>
           </div>
-          <div className="absolute w-80 h-80 rounded-full border border-white/10"></div>
+          
+          {/* * =================================================================
+            * 修改点 1 (根据 image_872758.jpg): 移除轨道背景圈
+            * 下面的 div 元素已被注释掉，以移除轨道的可视化背景。
+            * =================================================================
+            */
+          }
+          {/* <div className="absolute w-80 h-80 rounded-full border border-white/10"></div> */}
 
           {/* 轨道节点 */}
           {timelineData.map((item, index) => {
@@ -312,8 +318,14 @@ function RadialOrbitalTimeline() {
                   {item.title}
                 </div>
                 {isExpanded && (
-                  <Card className="absolute top-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
-                    <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
+                  /* * =================================================================
+                   * 修改点 2 (根据 image_872450.jpg): 调整卡片弹出方向
+                   * 将 'top-20' 修改为 'bottom-20'，使卡片向上弹出。
+                   * 同时将连接线从 -top-3 移动到 -bottom-3。
+                   * =================================================================
+                   */
+                  <Card className="absolute bottom-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
+                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center">
                         <Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>
