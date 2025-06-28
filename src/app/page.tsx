@@ -273,7 +273,7 @@ function RadialOrbitalTimeline() {
           ref={orbitRef} 
           style={{ 
             perspective: "1000px", 
-            transform: 'translateX(40vw) translateY(38vh)' 
+            transform: 'translateX(45vw) translateY(45vh)' 
           }}
         >
           <div
