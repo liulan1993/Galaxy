@@ -340,9 +340,10 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   };
   
   const writeAndDottify = useCallback(() => {
-      const canvas = canvasRef.current; const ctx = ctxRef.current;
-      if (!canvas || !ctx) return;
-      
+      const canvas = canvasRef.current; 
+      const ctx = ctxRef.current;
+      if (!canvas || !ctx) return; // 确保 ctx 存在
+
       // 清除画布
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       particlesRef.current = []; // 重置粒子数组
@@ -397,13 +398,15 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
     ctxRef.current = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1; // 获取设备像素比
 
-    // 设置 canvas 元素的实际像素尺寸，解决模糊问题
-    canvas.width = canvasWidth * dpr;
-    canvas.height = canvasHeight * dpr;
-    // 缩放上下文，使绘制操作在更高的分辨率下进行
+    // 确保 ctxRef.current 存在后再进行操作
     if (ctxRef.current) {
+      // 设置 canvas 元素的实际像素尺寸，解决模糊问题
+      canvas.width = canvasWidth * dpr;
+      canvas.height = canvasHeight * dpr;
+      // 缩放上下文，使绘制操作在更高的分辨率下进行
       ctxRef.current.scale(dpr, dpr);
     }
+
     // 交互半径根据实际 CSS 宽度计算
     interactionRadiusRef.current = Math.max(50, (canvasWidth / 10) * 1.5);
 
@@ -666,7 +669,7 @@ export default function Page() {
             bloomIntensity = 1.2; // PC 端最高质量
             blackHoleAnimationForce = 80;
             blackHoleParticleDensity = 3;
-            setBlackHoleCanvasSize({ width: 800, height: 400 });
+            // 移除 setBlackHoleCanvasSize，这部分逻辑移到 useEffect 中
         }
         // 平板端 (768px - 1023px)
         else if (viewportWidth >= 768) {
@@ -676,7 +679,7 @@ export default function Page() {
             bloomIntensity = 0.8; // 平衡性能和质量
             blackHoleAnimationForce = 60;
             blackHoleParticleDensity = 4; // 减少粒子密度
-            setBlackHoleCanvasSize({ width: 600, height: 300 });
+            // 移除 setBlackHoleCanvasSize，这部分逻辑移到 useEffect 中
         }
         // 手机端 (< 768px)
         else {
@@ -686,7 +689,7 @@ export default function Page() {
             bloomIntensity = 0.4; // 优先性能，降低强度
             blackHoleAnimationForce = 40;
             blackHoleParticleDensity = 6; // 显著减少粒子密度
-            setBlackHoleCanvasSize({ width: Math.min(window.innerWidth * 0.9, 500), height: Math.min(window.innerHeight * 0.4, 250) }); // 适应手机宽度
+            // 移除 setBlackHoleCanvasSize，这部分逻辑移到 useEffect 中
         }
 
         return {
@@ -711,21 +714,37 @@ export default function Page() {
 
     useEffect(() => {
         setIsClient(true);
-        // 初始化视口宽度
-        setViewportWidth(window.innerWidth);
+
+        // 定义一个函数来计算和设置所有与窗口相关的状态
+        const calculateAndSetResponsiveSizes = () => {
+            const currentWidth = window.innerWidth;
+            const currentHeight = window.innerHeight; // 获取当前视口高度
+
+            setViewportWidth(currentWidth);
+
+            // 根据视口宽度动态调整 blackHoleCanvasSize
+            if (currentWidth >= 1024) {
+                setBlackHoleCanvasSize({ width: 800, height: 400 });
+            } else if (currentWidth >= 768) {
+                setBlackHoleCanvasSize({ width: 600, height: 300 });
+            } else {
+                // 手机端尺寸调整，现在安全地访问 window.innerWidth 和 window.innerHeight
+                setBlackHoleCanvasSize({ width: Math.min(currentWidth * 0.9, 500), height: Math.min(currentHeight * 0.4, 250) });
+            }
+        };
+
+        // 组件首次挂载时执行一次计算和设置
+        calculateAndSetResponsiveSizes();
 
         if (sessionStorage.getItem('hasVisitedHomePage')) { setMainContentVisible(true); }
 
         // 监听窗口大小变化
-        const handleResize = () => {
-            setViewportWidth(window.innerWidth);
-        };
-        window.addEventListener('resize', handleResize);
+        window.addEventListener('resize', calculateAndSetResponsiveSizes);
 
         return () => {
-            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('resize', calculateAndSetResponsiveSizes);
         };
-    }, []);
+    }, []); // 依赖数组为空，确保只在客户端挂载和卸载时运行
 
     const handleAnimationFinish = () => { setTimeout(() => { setMainContentVisible(true); }, 500); };
 
