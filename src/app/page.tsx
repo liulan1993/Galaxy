@@ -231,7 +231,8 @@ function RadialOrbitalTimeline() {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    const radius = 90; // 动态半径，增加视觉层次感
+    // [BUG修复] 增加了半径大小，使轨道菜单具有更合适的可视范围。原始值90px过小。
+    const radius = 280;
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian);
     const y = radius * Math.sin(radian);
@@ -268,12 +269,12 @@ function RadialOrbitalTimeline() {
     >
       <GlobalTimelineStyles />
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        <div 
-          className="absolute w-full h-full flex items-center justify-center" 
-          ref={orbitRef} 
-          style={{ 
-            perspective: "1000px", 
-            transform: 'translateX(42vw) translateY(35vh)' 
+        <div
+          className="absolute w-full h-full flex items-center justify-center"
+          ref={orbitRef}
+          // [BUG修复] 移除了不正确的硬编码 transform 样式，此样式会导致菜单被推到屏幕外，从而导致页面看起来是空白的。
+          style={{
+            perspective: "1000px",
           }}
         >
           <div
@@ -477,7 +478,6 @@ const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?:
     <svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
         <defs>
             <linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030"></stop><stop offset="50%" stopColor="#ffffff"></stop><stop offset="100%" stopColor="#1b3984"></stop></linearGradient>
-            {/* [修复] 将自闭合的 <stop /> 改为 <stop></stop> 以解决潜在的 TSX 解析错误 */}
             <motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}><stop offset="0%" stopColor="white"></stop><stop offset="100%" stopColor="black"></stop></motion.radialGradient>
             <mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)"></rect></mask>
         </defs>
