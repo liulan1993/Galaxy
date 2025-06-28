@@ -305,13 +305,13 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
   const animationIdRef = useRef<number | null>(null);
-  // 修复点 1: 将类型从 Particle[] 改为 ParticleClass[]
   const particlesRef = useRef<ParticleClass[]>([]);
   const pointerRef = useRef<Pointer>({});
   const hasPointerRef = useRef<boolean>(false);
   const interactionRadiusRef = useRef<number>(100);
 
-  const [canvasSize, setCanvasSize] = useState<{ width: number; height: number }>({ width: 800, height: 400, });
+  // 修复: 移除未使用的 setCanvasSize, 避免 lint 警告
+  const canvasSize = useMemo<{ width: number; height: number }>(() => ({ width: 800, height: 400 }), []);
 
   const titleBox = useMemo<TextBox>(() => ({ str: title }), [title]);
   const subtitleBox = useMemo<TextBox>(() => ({ str: subtitle }), [subtitle]);
@@ -369,10 +369,9 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
     const ctx = ctxRef.current; const canvas = canvasRef.current;
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    // 修复点 1: 现在 p 是 ParticleClass 的实例, p.move 存在
     particlesRef.current.forEach(p => {
         p.move(interactionRadiusRef.current, hasPointerRef.current, pointerRef.current);
-        p.draw(ctx); // move 方法不再调用 draw, 在这里调用
+        p.draw(ctx);
     });
     animationIdRef.current = requestAnimationFrame(animate);
   };
@@ -416,7 +415,6 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
 
 // ============================================================================
 // C. 您原始的 page.tsx 组件 (已修改)
-// 下方的代码是您原始的页面组件，我只修改了主内容显示区域。
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -486,7 +484,6 @@ const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?:
     <svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
         <defs>
             <linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030" /><stop offset="50%" stopColor="#ffffff" /><stop offset="100%" stopColor="#1b3984" /></linearGradient>
-            {/* 修复点 2: 为 motion.radialGradient 添加了闭合标签 */}
             <motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}>
                 <stop offset="0%" stopColor="white" />
                 <stop offset="100%" stopColor="black" />
