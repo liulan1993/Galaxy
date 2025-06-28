@@ -3,7 +3,7 @@
 // ============================================================================
 // 0. 核心依赖导入
 // ============================================================================
-import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Trail } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -133,20 +133,11 @@ function RadialOrbitalTimeline() {
       Object.keys(newState).forEach((key) => { if (parseInt(key) !== id) { newState[parseInt(key)] = false; } });
       newState[id] = !prev[id];
       if (!prev[id]) {
-        setActiveNodeId(id);
-        // 手机端点击菜单项时，不再强制居中，而是保持菜单栏位置，让卡片在左侧打开
-        if (typeof window !== 'undefined' && window.innerWidth < 768) {
-          setAutoRotate(false); // 停止自动旋转
-          // 不调用 centerViewOnNode，避免菜单栏跳动
-        } else {
-          setAutoRotate(false);
-          centerViewOnNode(id);
-        }
-        
+        setActiveNodeId(id); setAutoRotate(false);
         const relatedItems = getRelatedItems(id);
         const newPulseEffect: Record<number, boolean> = {};
         relatedItems.forEach((relId) => { newPulseEffect[relId] = true; });
-        setPulseEffect(newPulseEffect);
+        setPulseEffect(newPulseEffect); centerViewOnNode(id);
       } else {
         setActiveNodeId(null); setAutoRotate(true); setPulseEffect({});
       }
@@ -195,31 +186,11 @@ function RadialOrbitalTimeline() {
     }
   };
 
-  // 动态调整轨道视图的偏移量，以避免卡片被遮挡
-  const orbitTransformStyle = useMemo(() => {
-    // 默认偏移量
-    let translateX = '41vw';
-    let translateY = '35vh';
-
-    // 针对手机端调整卡片显示位置
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      // 当有卡片展开时，保持旋转菜单栏不动，卡片自身调整位置
-      // 所以这里不再移动整个轨道视图
-      // 这里的逻辑是确保菜单栏本身在右下角，如果卡片展开不移动整个菜单栏
-      // 卡片会通过其自身的 CSS 样式调整位置
-      translateX = '41vw'; // 保持菜单栏在右侧
-      translateY = '35vh'; // 保持菜单栏在底部
-    }
-
-    return { perspective: "1000px", transform: `translateX(${translateX}) translateY(${translateY})` };
-  }, [expandedItems]); // 当 expandedItems 变化时重新计算
-
   return (
     <div className="relative z-10 w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden pointer-events-auto" ref={containerRef} onClick={handleContainerClick}>
       <GlobalTimelineStyles />
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        {/* 使用动态计算的 orbitTransformStyle */}
-        <div className="absolute w-full h-full flex items-center justify-center transition-transform duration-500 ease-out" ref={orbitRef} style={orbitTransformStyle}>
+        <div className="absolute w-full h-full flex items-center justify-center" ref={orbitRef} style={{ perspective: "1000px", transform: 'translateX(41vw) translateY(35vh)' }}>
           <div className="absolute w-16 h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse" style={{ boxShadow: '0 0 35px 8px #ff6030, 0 0 60px 20px rgba(255, 165, 0, 0.5), 0 0 90px 45px rgba(255, 255, 255, 0.1)', animationDuration: '4s', }}>
             <div className="w-5 h-5 rounded-full bg-white opacity-95 blur-sm"></div>
           </div>
@@ -233,11 +204,7 @@ function RadialOrbitalTimeline() {
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={16} /> </div>
                 <div className={`absolute top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}>{item.title}</div>
                 {isExpanded && (
-                  // 调整卡片位置：
-                  // 手机端：bottom-auto top-1/2 -translate-y-1/2 left-4 right-4 width-auto 确保占据大部分宽度且在左侧不被遮挡
-                  // 平板/PC端：保持原始居中显示
-                  <Card className="absolute left-4 right-4 w-auto bottom-auto top-1/2 -translate-y-1/2 
-                                   md:bottom-20 md:left-1/2 md:-translate-x-1/2 md:w-64">
+                  <Card className="absolute bottom-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center"><Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>{item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"}</Badge><span className="text-xs font-mono text-white/50">{item.date}</span></div>
@@ -322,9 +289,6 @@ export interface BlackHoleTitleProps {
   className?: string;
   animationForce?: number;
   particleDensity?: number;
-  // 新增 props 用于传递画布尺寸
-  canvasWidth: number;
-  canvasHeight: number;
 }
 
 // ----------------------------------------------------------------------------
@@ -337,8 +301,6 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   className = '',
   animationForce = 80,
   particleDensity = 3,
-  canvasWidth, // 从父组件接收宽度
-  canvasHeight, // 从父组件接收高度
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -348,8 +310,8 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   const hasPointerRef = useRef<boolean>(false);
   const interactionRadiusRef = useRef<number>(100);
 
-  // 移除了内部的 canvasSize useMemo，直接使用 props 传递进来的 canvasWidth 和 canvasHeight
-  // 这样做是为了让 Canvas 尺寸由父组件根据响应式逻辑控制
+  // 修复: 移除未使用的 setCanvasSize, 避免 lint 警告
+  const canvasSize = useMemo<{ width: number; height: number }>(() => ({ width: 800, height: 400 }), []);
 
   const titleBox = useMemo<TextBox>(() => ({ str: title }), [title]);
   const subtitleBox = useMemo<TextBox>(() => ({ str: subtitle }), [subtitle]);
@@ -363,7 +325,6 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
           if (data[i + 3] > 0) {
               const x = (i / 4) % box.w;
               const y = Math.floor((i / 4) / box.w);
-              // 确保根据 particleDensity 进行抽样
               if (x % particleDensity === 0 && y % particleDensity === 0) {
                   pixels.push({ x: box.x + x, y: box.y + y, rgb: [data[i], data[i+1], data[i+2]] });
               }
@@ -372,51 +333,37 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
       pixels.forEach(p => { particleArr.push(new ParticleClass(p.x, p.y, animationForce, p.rgb)); });
   };
   
-  const writeAndDottify = useCallback(() => {
-      const canvas = canvasRef.current; 
-      const ctx = ctxRef.current;
-      if (!canvas || !ctx) return; // 确保 ctx 存在
-
-      // 清除画布
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particlesRef.current = []; // 重置粒子数组
-
-      // 调整字体大小计算，确保在不同设备上标题可见且不失真
-      // 动态计算基础字体大小，使其能适应画布宽度
-      const calculatedTitleFontSize = Math.floor(canvas.width / (titleBox.str.length * 0.6 + 5)); // 调整系数以适应更宽的标题
-      // 限制标题高度不超过画布高度的1/3，并设置一个最小字体
-      titleBox.h = Math.floor(Math.min(calculatedTitleFontSize, canvas.height / 3, 120)); // 增加最大字体限制，防止PC端过大
-
-      ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
-      ctx.textAlign = 'center'; // 文本水平居中
-      ctx.textBaseline = 'middle'; // 文本垂直居中基于 middle
-      titleBox.w = Math.round(ctx.measureText(titleBox.str).width);
+  const writeAndDottify = () => {
+      const canvas = canvasRef.current; const ctx = ctxRef.current;
+      if (!canvas || !ctx) return;
       
-      // 标题的Y轴位置：垂直居中偏上
-      titleBox.x = canvas.width / 2; // X轴保持居中
-      titleBox.y = canvas.height * 0.4; // 调整Y轴位置，使其居中偏上
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particlesRef.current = [];
+
+      titleBox.h = Math.floor(canvas.width / (titleBox.str.length > 0 ? Math.min(titleBox.str.length, 10) : 10));
+      ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      titleBox.w = Math.round(ctx.measureText(titleBox.str).width);
+      titleBox.x = Math.max(0, 0.5 * (canvas.width - titleBox.w));
+      titleBox.y = 0.5 * (canvas.height - titleBox.h) - titleBox.h * 0.3;
 
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
       const N = colors.length - 1;
       colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
       ctx.fillStyle = gradient;
-      ctx.fillText(titleBox.str, titleBox.x, titleBox.y); // 使用调整后的X, Y坐标绘制
+      ctx.fillText(titleBox.str, 0.5 * canvas.width, 0.5 * canvas.height - titleBox.h * 0.3);
       dottify(titleBox, particlesRef.current);
 
-      // 副标题字体大小
-      subtitleBox.h = Math.floor(titleBox.h * 0.3); // 副标题是主标题的30%
+      subtitleBox.h = Math.floor(titleBox.h * 0.3);
       ctx.font = `400 ${subtitleBox.h}px Verdana, sans-serif`;
       subtitleBox.w = Math.round(ctx.measureText(subtitleBox.str).width);
-      
-      // 副标题的Y轴位置：在主标题下方
-      subtitleBox.x = canvas.width / 2; // X轴保持居中
-      subtitleBox.y = titleBox.y + titleBox.h * 0.7; // 调整Y轴位置，在主标题下方
-
-      ctx.fillText(subtitleBox.str, subtitleBox.x, subtitleBox.y); // 使用调整后的X, Y坐标绘制
+      subtitleBox.x = Math.max(0, 0.5 * (canvas.width - subtitleBox.w));
+      subtitleBox.y = 0.5 * canvas.height + subtitleBox.h * 0.8;
+      ctx.fillText(subtitleBox.str, 0.5 * canvas.width, 0.5 * canvas.height + subtitleBox.h * 0.8);
       dottify(subtitleBox, particlesRef.current);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height); // 再次清除，只保留粒子
-  }, [title, subtitle, colors, animationForce, particleDensity, canvasWidth, canvasHeight]); // 增加依赖
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+  };
 
   const animate = () => {
     const ctx = ctxRef.current; const canvas = canvasRef.current;
@@ -430,50 +377,35 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   };
   
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    const canvas = canvasRef.current; if (!canvas) return;
     ctxRef.current = canvas.getContext('2d');
-    const dpr = window.devicePixelRatio || 1; // 获取设备像素比
-
-    // 确保 ctxRef.current 存在后再进行操作
-    if (ctxRef.current) {
-      // 设置 canvas 元素的实际像素尺寸，解决模糊问题
-      canvas.width = canvasWidth * dpr;
-      canvas.height = canvasHeight * dpr;
-      // 缩放上下文，使绘制操作在更高的分辨率下进行
-      ctxRef.current.scale(dpr, dpr);
-    }
-
-    // 交互半径根据实际 CSS 宽度计算
-    interactionRadiusRef.current = Math.max(50, (canvasWidth / 10) * 1.5);
-
-    // 修复：在 useEffect 中调用 writeAndDottify 确保每次画布尺寸或内容变化时重新绘制
-    writeAndDottify(); 
+    
+    canvas.width = canvasSize.width;
+    canvas.height = canvasSize.height;
+    interactionRadiusRef.current = Math.max(50, (canvas.width / 10) * 1.5);
+    writeAndDottify();
     
     if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
     animate();
 
-    return () => { if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); }; // 修复拼写错误：animationIdIdRef -> animationIdRef
-  }, [title, subtitle, colors, animationForce, particleDensity, canvasWidth, canvasHeight, writeAndDottify]); // 增加依赖
+    return () => { if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); };
+  }, [title, subtitle, colors, animationForce, particleDensity, canvasSize]);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current; if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    // 根据 CSS 尺寸和设备像素比计算指针位置
-    pointerRef.current.x = (e.clientX - rect.left) * (canvas.width / rect.width) / dpr;
-    pointerRef.current.y = (e.clientY - rect.top) * (canvas.height / rect.height) / dpr;
+    const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+    pointerRef.current.x = (e.clientX - rect.left) * scaleX;
+    pointerRef.current.y = (e.clientY - rect.top) * scaleY;
     if (!hasPointerRef.current) { hasPointerRef.current = true; }
   };
   const handlePointerLeave = () => { hasPointerRef.current = false; };
 
   return (
-    // style 属性用于控制 canvas 的 CSS 尺寸，使其占据父容器的宽度和高度
     <canvas
       ref={canvasRef}
       className={`max-w-full max-h-full ${className} pointer-events-auto`}
-      style={{ width: `${canvasWidth}px`, height: `${canvasHeight}px` }} // 使用 props 传入的 CSS 尺寸
+      style={{width: `${canvasSize.width}px`, height: `${canvasSize.height}px`}}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
     />
@@ -491,7 +423,7 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
 interface StarfieldProps { speed?: number; particleCount?: number; warpSpeedActive?: boolean; accelerationDuration?: number; maxSpeed?: number; insideColor: string; outsideColor: string; }
 interface GalaxyParams { count: number; size: number; radius: number; branches: number; spin: number; randomness: number; randomnessPower: number; insideColor: string; outsideColor: string; }
 interface GalaxyProps { params: GalaxyParams; }
-interface SceneProps { galaxyParams: GalaxyParams; bloomIntensity: number; } // 增加 bloomIntensity prop
+interface SceneProps { galaxyParams: GalaxyParams; }
 
 // ----------------------------------------------------------------------------
 // C.2. 开场动画核心组件 (原始)
@@ -563,7 +495,7 @@ const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?:
         {subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text></>)}
     </svg>
 );
-const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; }; starfieldParticleCount: number; bloomIntensity: number; }> = ({ onAnimationFinish, galaxyColors, starfieldParticleCount, bloomIntensity }) => {
+const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; } }> = ({ onAnimationFinish, galaxyColors }) => {
   const [animationState, setAnimationState] = useState('initial'); const [isAnimationVisible, setIsAnimationVisible] = useState(true);
   const handleEnter = () => {
       if (animationState === 'initial') {
@@ -581,12 +513,8 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
                 </motion.div>
                 <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0 }} transition={{ duration: 2.0, ease: "easeIn" }}>
                     <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-                        {/* 根据设备调整开场动画的星空粒子数量 */}
-                        <Starfield warpSpeedActive={animationState === 'warping'} insideColor={galaxyColors.insideColor} outsideColor={galaxyColors.outsideColor} particleCount={starfieldParticleCount} />
-                        <EffectComposer>
-                            {/* 根据设备调整开场动画的 Bloom 效果强度 */}
-                            <Bloom luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1} luminanceSmoothing={0.8} height={300} intensity={animationState === 'warping' ? 30.0 : bloomIntensity} />
-                        </EffectComposer>
+                        <Starfield warpSpeedActive={animationState === 'warping'} insideColor={galaxyColors.insideColor} outsideColor={galaxyColors.outsideColor} />
+                        <EffectComposer><Bloom luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1} luminanceSmoothing={0.8} height={300} intensity={animationState === 'warping' ? 30.0 : 0.5} /></EffectComposer>
                     </Canvas>
                 </motion.div>
             </motion.div>
@@ -618,7 +546,6 @@ const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     return (
         <points ref={pointsRef} rotation-x={-0.4} position-y={-2}>
             <bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /><bufferAttribute attach="attributes-color" args={[colors, 3]} /></bufferGeometry>
-            {/* 粒子大小也由 params.size 控制，无需在此单独修改 */}
             <pointsMaterial size={params.size} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} vertexColors />
         </points>
     );
@@ -631,7 +558,7 @@ const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: T
     useFrame((_, delta) => {
         if (!meshRef.current || status === 'dead') return;
         if (status === 'flying') { const progress = (Date.now() - startTime.current) / duration; if (progress < 1) meshRef.current.position.copy(curve.getPoint(progress)); else { onImpact(); setFinalPosition(meshRef.current.position.clone()); setStatus('dying'); } }
-        if (status === 'dying') { if (materialRef.current) materialRef.current.opacity -= delta * 2.0; if (materialRef.current.opacity <= 0) { setStatus('dead'); onFaded(id); } } // 修复拼写错误：'dyng' -> 'dying'
+        if (status === 'dying') { if (materialRef.current) materialRef.current.opacity -= delta * 2.0; if (materialRef.current.opacity <= 0) { setStatus('dead'); onFaded(id); } }
     });
     const cometMesh = <mesh ref={meshRef} position={status === 'dying' ? finalPosition! : startPosition}><sphereGeometry args={[size, 16, 16]} /><meshBasicMaterial ref={materialRef} color={'#FFFFFF'} toneMapped={false} transparent opacity={1}/></mesh>;
     if (status === 'flying') return <Trail width={size * 12} length={5} color={'#FFFAE8'} attenuation={(t) => t * t}>{cometMesh}</Trail>;
@@ -661,11 +588,11 @@ const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse
     }, []);
     return <>{comets.map(comet => <Comet key={comet.id} {...comet} onImpact={triggerPulse} onFaded={handleFaded}/>)}</>;
 };
-const Scene: React.FC<SceneProps> = ({ galaxyParams, bloomIntensity }) => { // 接收 bloomIntensity
+const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     const bloomRef = useRef<{ intensity: number }>(null!);
     const triggerPulse = () => {
         if (bloomRef.current) { bloomRef.current.intensity = 5; }
-        setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = bloomIntensity; } }, 250); // 使用传入的强度
+        setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = 1.2; } }, 250);
     };
     return (
         <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
@@ -673,10 +600,7 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams, bloomIntensity }) => { // �
                 <Galaxy params={galaxyParams} />
                 <CometsController triggerPulse={triggerPulse} />
                 <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate={true} autoRotateSpeed={0.2} />
-                <EffectComposer>
-                    {/* 根据设备调整主场景的 Bloom 效果强度 */}
-                    <Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={bloomIntensity} />
-                </EffectComposer>
+                <EffectComposer><Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={1.2} /></EffectComposer>
             </Canvas>
         </div>
     );
@@ -688,103 +612,14 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams, bloomIntensity }) => { // �
 export default function Page() {
     const [isClient, setIsClient] = useState(false);
     const [mainContentVisible, setMainContentVisible] = useState(false);
-    const [viewportWidth, setViewportWidth] = useState(0); // 用于存储视口宽度
-    const [blackHoleCanvasSize, setBlackHoleCanvasSize] = useState({ width: 800, height: 400 }); // 黑洞标题画布尺寸
-
-    // 根据视口宽度动态调整 Three.js 和 BlackHoleTitle 的参数
-    const adjustedParams = useMemo(() => {
-        let galaxyCount = 200000;
-        let galaxySize = 0.015;
-        let starfieldParticleCount = 1500;
-        let bloomIntensity = 1.2;
-        let blackHoleAnimationForce = 80;
-        let blackHoleParticleDensity = 3;
-
-        // PC 端 (>= 1024px)
-        if (viewportWidth >= 1024) {
-            galaxyCount = 200000;
-            galaxySize = 0.015;
-            starfieldParticleCount = 1500;
-            bloomIntensity = 1.2; // PC 端最高质量
-            blackHoleAnimationForce = 80;
-            blackHoleParticleDensity = 3;
-        }
-        // 平板端 (768px - 1023px)
-        else if (viewportWidth >= 768) {
-            galaxyCount = 100000; // 减少粒子数量
-            galaxySize = 0.02; // 稍微增大粒子大小以保持可见性
-            starfieldParticleCount = 1000;
-            bloomIntensity = 0.8; // 平衡性能和质量
-            blackHoleAnimationForce = 60;
-            blackHoleParticleDensity = 4; // 减少粒子密度
-        }
-        // 手机端 (< 768px)
-        else {
-            galaxyCount = 50000; // 进一步减少粒子数量
-            galaxySize = 0.025; // 进一步增大粒子大小
-            starfieldParticleCount = 500;
-            bloomIntensity = 0.4; // 优先性能，降低强度
-            blackHoleAnimationForce = 40;
-            blackHoleParticleDensity = 6; // 显著减少粒子密度
-        }
-
-        return {
-            galaxyParams: {
-                count: galaxyCount,
-                size: galaxySize,
-                radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
-                randomnessPower: 3, insideColor: '#ff6030', outsideColor: '#1b3984'
-            },
-            starfieldParticleCount,
-            bloomIntensity,
-            blackHoleAnimationForce,
-            blackHoleParticleDensity,
-        };
-    }, [viewportWidth]);
-
-    // 原始的 galaxyParams，其固定值保持不变
-    const originalGalaxyParams: GalaxyParams = useMemo(() => ({
+    const galaxyParams: GalaxyParams = useMemo(() => ({
         count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
         randomnessPower: 3, insideColor: '#ff6030', outsideColor: '#1b3984'
     }), []);
-
     useEffect(() => {
         setIsClient(true);
-
-        // 定义一个函数来计算和设置所有与窗口相关的状态
-        const calculateAndSetResponsiveSizes = () => {
-            const currentWidth = window.innerWidth;
-            const currentHeight = window.innerHeight; // 获取当前视口高度
-
-            setViewportWidth(currentWidth);
-
-            // 根据视口宽度动态调整 blackHoleCanvasSize
-            if (currentWidth >= 1024) {
-                setBlackHoleCanvasSize({ width: 800, height: 400 });
-            } else if (currentWidth >= 768) {
-                setBlackHoleCanvasSize({ width: 600, height: 300 });
-            } else {
-                // 手机端尺寸调整，现在安全地访问 window.innerWidth 和 window.innerHeight
-                // 确保画布尺寸不会过小或过大，并保持一定比例
-                const mobileCanvasWidth = Math.min(currentWidth * 0.9, 500);
-                const mobileCanvasHeight = Math.min(currentHeight * 0.4, 250);
-                setBlackHoleCanvasSize({ width: mobileCanvasWidth, height: mobileCanvasHeight });
-            }
-        };
-
-        // 组件首次挂载时执行一次计算和设置
-        calculateAndSetResponsiveSizes();
-
         if (sessionStorage.getItem('hasVisitedHomePage')) { setMainContentVisible(true); }
-
-        // 监听窗口大小变化
-        window.addEventListener('resize', calculateAndSetResponsiveSizes);
-
-        return () => {
-            window.removeEventListener('resize', calculateAndSetResponsiveSizes);
-        };
-    }, []); // 依赖数组为空，确保只在客户端挂载和卸载时运行
-
+    }, []);
     const handleAnimationFinish = () => { setTimeout(() => { setMainContentVisible(true); }, 500); };
 
     return (
@@ -793,9 +628,7 @@ export default function Page() {
             {isClient && !mainContentVisible && (
                 <OpeningAnimation 
                     onAnimationFinish={handleAnimationFinish}
-                    galaxyColors={{ insideColor: originalGalaxyParams.insideColor, outsideColor: originalGalaxyParams.outsideColor }}
-                    starfieldParticleCount={adjustedParams.starfieldParticleCount} // 使用调整后的粒子数量
-                    bloomIntensity={adjustedParams.bloomIntensity} // 使用调整后的 Bloom 强度
+                    galaxyColors={{ insideColor: galaxyParams.insideColor, outsideColor: galaxyParams.outsideColor }}
                 />
             )}
 
@@ -808,8 +641,7 @@ export default function Page() {
                         transition={{ duration: 1.5, ease: "easeInOut" }}
                     >
                         {/* 静态银河背景 (z-0) */}
-                        {/* 将调整后的星系参数和 Bloom 强度传递给 Scene 组件 */}
-                        <Scene galaxyParams={adjustedParams.galaxyParams} bloomIntensity={adjustedParams.bloomIntensity} />
+                        <Scene galaxyParams={galaxyParams} />
                         
                         {/* * =================================================================
                           * 新增点: 集成 “黑洞特效标题” 组件
@@ -825,10 +657,6 @@ export default function Page() {
                             <BlackHoleTitle
                                 title="GALAXY"
                                 subtitle="星河遇见你"
-                                animationForce={adjustedParams.blackHoleAnimationForce} // 传递调整后的动画力
-                                particleDensity={adjustedParams.blackHoleParticleDensity} // 传递调整后的粒子密度
-                                canvasWidth={blackHoleCanvasSize.width} // 传递调整后的画布宽度
-                                canvasHeight={blackHoleCanvasSize.height} // 传递调整后的画布高度
                             />
                         </div>
 
