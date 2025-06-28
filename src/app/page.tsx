@@ -156,7 +156,10 @@ function RadialOrbitalTimeline() {
     const nodeIndex = timelineData.findIndex((item) => item.id === nodeId);
     const totalNodes = timelineData.length;
     const targetAngle = (nodeIndex / totalNodes) * 360;
-    setRotationAngle(270 - targetAngle);
+    // 旋转到目标节点，使其尽量居中。同时考虑菜单栏在右下角，需要调整偏移
+    // 原始 transform: 'translateX(41vw) translateY(35vh)'
+    // 为了让卡片在手机端居中且不被遮挡，可以在其展开时，将整个轨道视图向左上方微调
+    setRotationAngle(270 - targetAngle); // 调整旋转中心
   };
 
   const calculateNodePosition = (index: number, total: number) => {
@@ -186,11 +189,34 @@ function RadialOrbitalTimeline() {
     }
   };
 
+  // 动态调整轨道视图的偏移量，以避免卡片被遮挡
+  const orbitTransformStyle = useMemo(() => {
+    // 默认偏移量
+    let translateX = '41vw';
+    let translateY = '35vh';
+
+    // 针对手机端调整卡片显示位置
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      // 当有卡片展开时，将整个轨道视图向左上方移动，为卡片留出空间
+      if (Object.values(expandedItems).some(Boolean)) {
+        translateX = '10vw'; // 菜单栏整体向左移，给卡片留出更多空间
+        translateY = '15vh'; // 菜单栏整体向上移
+      } else {
+        // 无卡片展开时，保持原始位置，确保菜单栏在右下角
+        translateX = '41vw';
+        translateY = '35vh';
+      }
+    }
+
+    return { perspective: "1000px", transform: `translateX(${translateX}) translateY(${translateY})` };
+  }, [expandedItems]); // 当 expandedItems 变化时重新计算
+
   return (
     <div className="relative z-10 w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden pointer-events-auto" ref={containerRef} onClick={handleContainerClick}>
       <GlobalTimelineStyles />
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        <div className="absolute w-full h-full flex items-center justify-center" ref={orbitRef} style={{ perspective: "1000px", transform: 'translateX(41vw) translateY(35vh)' }}>
+        {/* 使用动态计算的 orbitTransformStyle */}
+        <div className="absolute w-full h-full flex items-center justify-center transition-transform duration-500 ease-out" ref={orbitRef} style={orbitTransformStyle}>
           <div className="absolute w-16 h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse" style={{ boxShadow: '0 0 35px 8px #ff6030, 0 0 60px 20px rgba(255, 165, 0, 0.5), 0 0 90px 45px rgba(255, 255, 255, 0.1)', animationDuration: '4s', }}>
             <div className="w-5 h-5 rounded-full bg-white opacity-95 blur-sm"></div>
           </div>
@@ -204,7 +230,9 @@ function RadialOrbitalTimeline() {
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={16} /> </div>
                 <div className={`absolute top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}>{item.title}</div>
                 {isExpanded && (
-                  <Card className="absolute bottom-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
+                  // 调整卡片位置以避免在手机端被遮挡
+                  <Card className="absolute -left-[calc(50%+100px)] bottom-20 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible
+                                   md:left-1/2 md:-translate-x-1/2"> {/* md: 尺寸以上恢复原位 */}
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center"><Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>{item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"}</Badge><span className="text-xs font-mono text-white/50">{item.date}</span></div>
@@ -351,21 +379,23 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
       // 根据实际画布宽度和标题长度计算标题高度，确保文字不溢出且适应大小
       // 这里的字体大小应根据 canvas 的实际像素宽度来计算，而不是固定值
       // 10 只是一个经验系数，确保在不同分辨率下文字大小合理
-      const calculatedTitleHeight = Math.floor(canvas.width / (titleBox.str.length > 0 ? Math.min(titleBox.str.length, 10) : 10) * 0.5); // 调整字体大小计算
-      titleBox.h = calculatedTitleHeight > 0 ? calculatedTitleHeight : 50; // 确保最小高度
+      // 调整字体大小计算，确保在不同设备上标题可见且不失真
+      const baseFontSize = canvas.width / (titleBox.str.length * 0.8 + 5); // 动态计算基础字体大小
+      titleBox.h = Math.floor(Math.min(baseFontSize, canvas.height / 3)); // 限制标题高度不超过画布高度的1/3
 
       ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       titleBox.w = Math.round(ctx.measureText(titleBox.str).width);
       // 居中计算
       titleBox.x = (canvas.width - titleBox.w) / 2;
-      titleBox.y = (canvas.height / 2) - (titleBox.h * 0.3);
+      // 调整标题Y轴位置，使其在画布顶部偏中心
+      titleBox.y = (canvas.height / 2) - (titleBox.h * 0.3) - (canvas.height * 0.1); // 向上微调
 
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
       const N = colors.length - 1;
       colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
       ctx.fillStyle = gradient;
-      ctx.fillText(titleBox.str, canvas.width / 2, canvas.height / 2 - titleBox.h * 0.3);
+      ctx.fillText(titleBox.str, canvas.width / 2, titleBox.y); // 使用调整后的Y坐标
       dottify(titleBox, particlesRef.current);
 
       subtitleBox.h = Math.floor(titleBox.h * 0.3);
@@ -373,8 +403,10 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
       subtitleBox.w = Math.round(ctx.measureText(subtitleBox.str).width);
       // 居中计算
       subtitleBox.x = (canvas.width - subtitleBox.w) / 2;
-      subtitleBox.y = (canvas.height / 2) + (subtitleBox.h * 0.8);
-      ctx.fillText(subtitleBox.str, canvas.width / 2, canvas.height / 2 + subtitleBox.h * 0.8);
+      // 调整副标题Y轴位置，使其在主标题下方
+      subtitleBox.y = titleBox.y + titleBox.h * 0.8 + (canvas.height * 0.05); // 在主标题下方微调
+
+      ctx.fillText(subtitleBox.str, canvas.width / 2, subtitleBox.y); // 使用调整后的Y坐标
       dottify(subtitleBox, particlesRef.current);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height); // 再次清除，只保留粒子
@@ -669,7 +701,6 @@ export default function Page() {
             bloomIntensity = 1.2; // PC 端最高质量
             blackHoleAnimationForce = 80;
             blackHoleParticleDensity = 3;
-            // 移除 setBlackHoleCanvasSize，这部分逻辑移到 useEffect 中
         }
         // 平板端 (768px - 1023px)
         else if (viewportWidth >= 768) {
@@ -679,7 +710,6 @@ export default function Page() {
             bloomIntensity = 0.8; // 平衡性能和质量
             blackHoleAnimationForce = 60;
             blackHoleParticleDensity = 4; // 减少粒子密度
-            // 移除 setBlackHoleCanvasSize，这部分逻辑移到 useEffect 中
         }
         // 手机端 (< 768px)
         else {
@@ -689,7 +719,6 @@ export default function Page() {
             bloomIntensity = 0.4; // 优先性能，降低强度
             blackHoleAnimationForce = 40;
             blackHoleParticleDensity = 6; // 显著减少粒子密度
-            // 移除 setBlackHoleCanvasSize，这部分逻辑移到 useEffect 中
         }
 
         return {
@@ -729,7 +758,10 @@ export default function Page() {
                 setBlackHoleCanvasSize({ width: 600, height: 300 });
             } else {
                 // 手机端尺寸调整，现在安全地访问 window.innerWidth 和 window.innerHeight
-                setBlackHoleCanvasSize({ width: Math.min(currentWidth * 0.9, 500), height: Math.min(currentHeight * 0.4, 250) });
+                // 确保画布尺寸不会过小或过大，并保持一定比例
+                const mobileCanvasWidth = Math.min(currentWidth * 0.9, 500);
+                const mobileCanvasHeight = Math.min(currentHeight * 0.4, 250);
+                setBlackHoleCanvasSize({ width: mobileCanvasWidth, height: mobileCanvasHeight });
             }
         };
 
