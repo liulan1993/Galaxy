@@ -3,7 +3,7 @@
 // ============================================================================
 // 0. 核心依赖导入
 // ============================================================================
-import React, { useRef, useMemo, useState, useEffect } from 'react';
+import React, { useRef, useMemo, useState, useEffect, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Trail } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -16,13 +16,41 @@ import { twMerge } from "tailwind-merge";
 import { Slot } from "@radix-ui/react-slot";
 import { ArrowRight, Link, Zap, Calendar, Code, FileText, User, Clock } from "lucide-react";
 
+// ============================================================================
+// 新增: 响应式设备检测 Hook
+// 作用: 检测当前设备类型（手机、平板、PC），以便动态调整渲染质量。
+// ============================================================================
+type DeviceType = 'mobile' | 'tablet' | 'desktop';
+
+const useDeviceDetect = (): DeviceType => {
+  const [deviceType, setDeviceType] = useState<DeviceType>('desktop');
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setDeviceType('mobile');
+      } else if (window.innerWidth >= 768 && window.innerWidth < 1024) {
+        setDeviceType('tablet');
+      } else {
+        setDeviceType('desktop');
+      }
+    };
+
+    handleResize(); // 初始检测
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return deviceType;
+};
+
 
 // ============================================================================
-// A. “旋转菜单栏” (RadialOrbitalTimeline) 组件 (来自您原始文件)
+// A. “旋转菜单栏” (RadialOrbitalTimeline) 组件 (已进行响应式优化)
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// A.1. 工具函数与样式
+// A.1. 工具函数与样式 (保持原样)
 // ----------------------------------------------------------------------------
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -55,7 +83,7 @@ const GlobalTimelineStyles = () => (
 );
 
 // ----------------------------------------------------------------------------
-// A.2. UI基础组件
+// A.2. UI基础组件 (保持原样)
 // ----------------------------------------------------------------------------
 const badgeVariants = cva(
   "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
@@ -98,7 +126,7 @@ const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 CardContent.displayName = "CardContent";
 
 // ----------------------------------------------------------------------------
-// A.3. 主时间轴组件
+// A.3. 主时间轴组件 (已优化)
 // ----------------------------------------------------------------------------
 interface TimelineItem {
   id: number; title: string; date: string; content: string; category: string; icon: React.ComponentType<{ size?: number }>; relatedIds: number[]; status: "completed" | "in-progress" | "pending"; energy: number;
@@ -111,7 +139,8 @@ const timelineData: TimelineItem[] = [
   { id: 5, title: "发布", date: "2024年5月", content: "最终部署与正式发布。", category: "Release", icon: Clock, relatedIds: [4], status: "pending", energy: 10, },
 ];
 
-function RadialOrbitalTimeline() {
+// 新增: 接收 deviceType 以动态调整布局
+function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -120,6 +149,15 @@ function RadialOrbitalTimeline() {
   const containerRef = useRef<HTMLDivElement>(null);
   const orbitRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
+
+  // 优化: 根据设备类型调整轨道半径
+  const orbitRadius = useMemo(() => {
+    switch (deviceType) {
+      case 'mobile': return 65; // 移动端半径更小
+      case 'tablet': return 80;
+      case 'desktop': default: return 90;
+    }
+  }, [deviceType]);
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === containerRef.current || e.target === orbitRef.current) {
@@ -160,7 +198,9 @@ function RadialOrbitalTimeline() {
   };
 
   const calculateNodePosition = (index: number, total: number) => {
-    const angle = ((index / total) * 360 + rotationAngle) % 360; const radius = 90;
+    const angle = ((index / total) * 360 + rotationAngle) % 360;
+    // 使用动态半径
+    const radius = orbitRadius; 
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian); const y = radius * Math.sin(radian);
     const zIndex = Math.round(100 + 50 * Math.sin(radian));
@@ -186,25 +226,37 @@ function RadialOrbitalTimeline() {
     }
   };
 
+  // 优化: 调整容器的布局和定位，使其在不同设备上表现更佳
+  // PC端保持右下角，移动端和部分平板尺寸下居中
   return (
-    <div className="relative z-10 w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden pointer-events-auto" ref={containerRef} onClick={handleContainerClick}>
+    <div 
+        className="absolute w-full h-full flex items-center justify-center pointer-events-auto lg:items-end lg:justify-end" 
+        ref={containerRef} 
+        onClick={handleContainerClick}
+    >
       <GlobalTimelineStyles />
-      <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        <div className="absolute w-full h-full flex items-center justify-center" ref={orbitRef} style={{ perspective: "1000px", transform: 'translateX(41vw) translateY(35vh)' }}>
-          <div className="absolute w-16 h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse" style={{ boxShadow: '0 0 35px 8px #ff6030, 0 0 60px 20px rgba(255, 165, 0, 0.5), 0 0 90px 45px rgba(255, 255, 255, 0.1)', animationDuration: '4s', }}>
-            <div className="w-5 h-5 rounded-full bg-white opacity-95 blur-sm"></div>
+      <div className="relative w-full max-w-4xl h-full flex items-center justify-center lg:w-1/2 lg:h-1/2">
+        <div 
+          className="absolute w-full h-full flex items-center justify-center" 
+          ref={orbitRef} 
+          style={{ perspective: "1000px" }}
+        >
+          <div className="absolute w-12 h-12 md:w-16 md:h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse" style={{ boxShadow: '0 0 35px 8px #ff6030, 0 0 60px 20px rgba(255, 165, 0, 0.5), 0 0 90px 45px rgba(255, 255, 255, 0.1)', animationDuration: '4s', }}>
+            <div className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-white opacity-95 blur-sm"></div>
           </div>
           {timelineData.map((item, index) => {
             const position = calculateNodePosition(index, timelineData.length);
             const isExpanded = expandedItems[item.id]; const isRelated = isRelatedToActive(item.id); const isPulsing = pulseEffect[item.id]; const Icon = item.icon;
             const nodeStyle: React.CSSProperties = { transform: `translate(${position.x}px, ${position.y}px)`, zIndex: isExpanded ? 200 : position.zIndex, opacity: isExpanded ? 1 : position.opacity, };
+            // 优化: 移动端卡片位置调整
+            const cardPositionClass = deviceType === 'mobile' ? 'bottom-16' : 'bottom-20';
             return (
               <div key={item.id} ref={(el) => { nodeRefs.current[item.id] = el; }} className="absolute transition-all duration-700 cursor-pointer" style={nodeStyle} onClick={(e) => { e.stopPropagation(); toggleItem(item.id); }}>
                 <div className={`absolute rounded-full -inset-1 ${isPulsing ? "animate-pulse duration-1000" : ""}`} style={{ background: `radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)`, width: `${item.energy * 0.5 + 40}px`, height: `${item.energy * 0.5 + 40}px`, left: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, top: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, }} ></div>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={16} /> </div>
-                <div className={`absolute top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}>{item.title}</div>
+                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={deviceType === 'mobile' ? 12 : 16} /> </div>
+                <div className={`absolute top-10 md:top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}>{item.title}</div>
                 {isExpanded && (
-                  <Card className="absolute bottom-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
+                  <Card className={`absolute left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible ${cardPositionClass}`}>
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center"><Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>{item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"}</Badge><span className="text-xs font-mono text-white/50">{item.date}</span></div>
@@ -239,17 +291,10 @@ function RadialOrbitalTimeline() {
   );
 }
 
-
 // ============================================================================
-// B. 新增：“黑洞特效标题” (BlackHoleTitle) 组件
-// 这是根据 interactive-text-particle.tsx 和 demo.tsx 合并并增强后的组件。
+// B. “黑洞特效标题” (BlackHoleTitle) 组件 (已优化)
 // ============================================================================
-
-// ----------------------------------------------------------------------------
-// B.1. 组件类型定义
-// ----------------------------------------------------------------------------
 interface Pointer { x?: number; y?: number; }
-// 修复点 1: 此处定义 ParticleClass, 而不是在组件内部
 class ParticleClass {
     ox: number; oy: number; cx: number; cy: number; or: number; cr: number; pv: number; ov: number; f: number; rgb: number[];
     constructor(x: number, y: number, animationForce: number, rgb: number[] = [(Math.random() * 128), (Math.random() * 128), (Math.random() * 128)]) {
@@ -289,6 +334,7 @@ export interface BlackHoleTitleProps {
   className?: string;
   animationForce?: number;
   particleDensity?: number;
+  deviceType: DeviceType; // 新增
 }
 
 // ----------------------------------------------------------------------------
@@ -301,6 +347,7 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   className = '',
   animationForce = 80,
   particleDensity = 3,
+  deviceType, // 接收设备类型
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -310,37 +357,27 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   const hasPointerRef = useRef<boolean>(false);
   const interactionRadiusRef = useRef<number>(100);
 
-  // 修复: 移除未使用的 setCanvasSize, 避免 lint 警告
-  const canvasSize = useMemo<{ width: number; height: number }>(() => ({ width: 800, height: 400 }), []);
+  // 优化: 根据设备类型调整画布大小和标题字体，避免移动端模糊和卡顿
+  const { width, height, titleFontSizeFactor } = useMemo(() => {
+    switch (deviceType) {
+      case 'mobile': return { width: 360, height: 180, titleFontSizeFactor: 12 };
+      case 'tablet': return { width: 600, height: 300, titleFontSizeFactor: 10 };
+      case 'desktop': default: return { width: 800, height: 400, titleFontSizeFactor: 10 };
+    }
+  }, [deviceType]);
 
   const titleBox = useMemo<TextBox>(() => ({ str: title }), [title]);
   const subtitleBox = useMemo<TextBox>(() => ({ str: subtitle }), [subtitle]);
 
-  const dottify = (box: TextBox, particleArr: ParticleClass[]) => {
-      const ctx = ctxRef.current; const canvas = canvasRef.current;
-      if (!ctx || !canvas || box.x === undefined || box.y === undefined || box.w === undefined || box.h === undefined) return;
-      const data = ctx.getImageData(box.x, box.y, box.w, box.h).data;
-      const pixels = [];
-      for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 3] > 0) {
-              const x = (i / 4) % box.w;
-              const y = Math.floor((i / 4) / box.w);
-              if (x % particleDensity === 0 && y % particleDensity === 0) {
-                  pixels.push({ x: box.x + x, y: box.y + y, rgb: [data[i], data[i+1], data[i+2]] });
-              }
-          }
-      }
-      pixels.forEach(p => { particleArr.push(new ParticleClass(p.x, p.y, animationForce, p.rgb)); });
-  };
-  
-  const writeAndDottify = () => {
+  const writeAndDottify = useCallback(() => {
       const canvas = canvasRef.current; const ctx = ctxRef.current;
       if (!canvas || !ctx) return;
       
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       particlesRef.current = [];
 
-      titleBox.h = Math.floor(canvas.width / (titleBox.str.length > 0 ? Math.min(titleBox.str.length, 10) : 10));
+      // 使用动态字号因子
+      titleBox.h = Math.floor(canvas.width / (titleBox.str.length > 0 ? Math.min(titleBox.str.length, titleFontSizeFactor) : titleFontSizeFactor));
       ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       titleBox.w = Math.round(ctx.measureText(titleBox.str).width);
@@ -352,36 +389,54 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
       colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
       ctx.fillStyle = gradient;
       ctx.fillText(titleBox.str, 0.5 * canvas.width, 0.5 * canvas.height - titleBox.h * 0.3);
-      dottify(titleBox, particlesRef.current);
+      
+      const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+      const pixels = [];
+      for (let y = 0; y < canvas.height; y += particleDensity) {
+          for (let x = 0; x < canvas.width; x += particleDensity) {
+              const i = (y * canvas.width + x) * 4;
+              if (data[i + 3] > 128) {
+                  pixels.push({ x: x, y: y, rgb: [data[i], data[i+1], data[i+2]] });
+              }
+          }
+      }
+      pixels.forEach(p => { particlesRef.current.push(new ParticleClass(p.x, p.y, animationForce, p.rgb)); });
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+      // 副标题渲染 (不参与粒子化，以提高性能和清晰度)
       subtitleBox.h = Math.floor(titleBox.h * 0.3);
       ctx.font = `400 ${subtitleBox.h}px Verdana, sans-serif`;
-      subtitleBox.w = Math.round(ctx.measureText(subtitleBox.str).width);
-      subtitleBox.x = Math.max(0, 0.5 * (canvas.width - subtitleBox.w));
-      subtitleBox.y = 0.5 * canvas.height + subtitleBox.h * 0.8;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
       ctx.fillText(subtitleBox.str, 0.5 * canvas.width, 0.5 * canvas.height + subtitleBox.h * 0.8);
-      dottify(subtitleBox, particlesRef.current);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-  };
-
-  const animate = () => {
+  }, [animationForce, particleDensity, colors, title, subtitle, width, height, titleFontSizeFactor]);
+  
+  const animate = useCallback(() => {
     const ctx = ctxRef.current; const canvas = canvasRef.current;
     if (!ctx || !canvas) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // 重新绘制副标题，因为它没有被粒子化
+    subtitleBox.h = Math.floor(titleBox.h! * 0.3);
+    ctx.font = `400 ${subtitleBox.h}px Verdana, sans-serif`;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+    ctx.fillText(subtitleBox.str, 0.5 * canvas.width, 0.5 * canvas.height + subtitleBox.h * 0.8);
+    
     particlesRef.current.forEach(p => {
         p.move(interactionRadiusRef.current, hasPointerRef.current, pointerRef.current);
         p.draw(ctx);
     });
     animationIdRef.current = requestAnimationFrame(animate);
-  };
+  }, [subtitle, subtitleBox, titleBox]);
   
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return;
     ctxRef.current = canvas.getContext('2d');
     
-    canvas.width = canvasSize.width;
-    canvas.height = canvasSize.height;
+    // 使用动态宽高
+    canvas.width = width;
+    canvas.height = height;
     interactionRadiusRef.current = Math.max(50, (canvas.width / 10) * 1.5);
     writeAndDottify();
     
@@ -389,7 +444,7 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
     animate();
 
     return () => { if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); };
-  }, [title, subtitle, colors, animationForce, particleDensity, canvasSize]);
+  }, [writeAndDottify, animate, width, height]);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current; if (!canvas) return;
@@ -405,30 +460,34 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
     <canvas
       ref={canvasRef}
       className={`max-w-full max-h-full ${className} pointer-events-auto`}
-      style={{width: `${canvasSize.width}px`, height: `${canvasSize.height}px`}}
+      style={{width: `${width}px`, height: `${height}px`}}
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
     />
   );
 };
 
-
 // ============================================================================
-// C. 您原始的 page.tsx 组件 (已修改)
+// C. page.tsx 核心组件 (已进行响应式优化)
 // ============================================================================
-
-// ----------------------------------------------------------------------------
-// C.1. 类型定义 (原始)
-// ----------------------------------------------------------------------------
-interface StarfieldProps { speed?: number; particleCount?: number; warpSpeedActive?: boolean; accelerationDuration?: number; maxSpeed?: number; insideColor: string; outsideColor: string; }
+interface QualitySettings {
+    dpr: [number, number] | number;
+    starfieldCount: number;
+    bloomIntensity: { main: number; warp: number; };
+    galaxyCount: number;
+    cometCount: number;
+    particleDensity: number;
+}
+interface StarfieldProps { speed?: number; particleCount: number; warpSpeedActive?: boolean; accelerationDuration?: number; maxSpeed?: number; insideColor: string; outsideColor: string; }
 interface GalaxyParams { count: number; size: number; radius: number; branches: number; spin: number; randomness: number; randomnessPower: number; insideColor: string; outsideColor: string; }
 interface GalaxyProps { params: GalaxyParams; }
-interface SceneProps { galaxyParams: GalaxyParams; }
+interface SceneProps { galaxyParams: GalaxyParams; quality: QualitySettings; }
+interface OpeningAnimationProps { onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; }; quality: QualitySettings; }
 
 // ----------------------------------------------------------------------------
-// C.2. 开场动画核心组件 (原始)
+// C.2. 开场动画核心组件 (已优化)
 // ----------------------------------------------------------------------------
-const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, warpSpeedActive = false, accelerationDuration = 2, maxSpeed = 50, insideColor, outsideColor }) => {
+const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount, warpSpeedActive = false, accelerationDuration = 2, maxSpeed = 50, insideColor, outsideColor }) => {
   const ref = useRef<THREE.Points>(null!); const warpStartTime = useRef(0);
   const [particleTexture, setParticleTexture] = useState<THREE.CanvasTexture | null>(null);
   useEffect(() => {
@@ -480,6 +539,7 @@ const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, 
     </points>
   );
 };
+
 const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?: string; onClick?: () => void; }) => (
     <svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
         <defs>
@@ -495,7 +555,8 @@ const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?:
         {subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text></>)}
     </svg>
 );
-const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; } }> = ({ onAnimationFinish, galaxyColors }) => {
+
+const OpeningAnimation: React.FC<OpeningAnimationProps> = ({ onAnimationFinish, galaxyColors, quality }) => {
   const [animationState, setAnimationState] = useState('initial'); const [isAnimationVisible, setIsAnimationVisible] = useState(true);
   const handleEnter = () => {
       if (animationState === 'initial') {
@@ -512,9 +573,16 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
                     <div className="w-full max-w-2xl px-4"><TextShineEffect text="Galaxy" subtitle="轻触，开启非凡" onClick={handleEnter} /></div>
                 </motion.div>
                 <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0 }} transition={{ duration: 2.0, ease: "easeIn" }}>
-                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
-                        <Starfield warpSpeedActive={animationState === 'warping'} insideColor={galaxyColors.insideColor} outsideColor={galaxyColors.outsideColor} />
-                        <EffectComposer><Bloom luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1} luminanceSmoothing={0.8} height={300} intensity={animationState === 'warping' ? 30.0 : 0.5} /></EffectComposer>
+                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }} dpr={quality.dpr}>
+                        <Starfield 
+                            warpSpeedActive={animationState === 'warping'} 
+                            insideColor={galaxyColors.insideColor} 
+                            outsideColor={galaxyColors.outsideColor}
+                            particleCount={quality.starfieldCount} 
+                        />
+                        <EffectComposer>
+                           <Bloom luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1} luminanceSmoothing={0.8} height={300} intensity={animationState === 'warping' ? quality.bloomIntensity.warp : 0.5} />
+                        </EffectComposer>
                     </Canvas>
                 </motion.div>
             </motion.div>
@@ -524,7 +592,7 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
 }
 
 // ----------------------------------------------------------------------------
-// C.3. 主场景组件 (原始)
+// C.3. 主场景组件 (已优化)
 // ----------------------------------------------------------------------------
 const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     const pointsRef = useRef<THREE.Points>(null!);
@@ -565,13 +633,13 @@ const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: T
     if (status === 'dying' && finalPosition) return cometMesh;
     return null;
 };
-const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse }) => {
+const CometsController: React.FC<{ triggerPulse: () => void; cometCount: number }> = ({ triggerPulse, cometCount }) => {
     const [comets, setComets] = useState<Omit<React.ComponentProps<typeof Comet>, 'onImpact' | 'onFaded' | 'key'>[]>([]);
     const handleFaded = (cometId: string) => setComets(prev => prev.filter(c => c.id !== cometId));
     useEffect(() => {
         const timeouts: NodeJS.Timeout[] = [];
         const scheduleComets = () => {
-            for (let i = 0; i < 8; i++) {
+            for (let i = 0; i < cometCount; i++) {
                 const delay = Math.random() * 15000;
                 timeouts.push(setTimeout(() => {
                     const spherical = new THREE.Spherical(20 + Math.random() * 15, Math.random() * Math.PI, Math.random() * Math.PI * 2); const startPosition = new THREE.Vector3().setFromSpherical(spherical);
@@ -585,50 +653,87 @@ const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse
         };
         scheduleComets(); const intervalId = setInterval(scheduleComets, 15000);
         return () => { clearInterval(intervalId); timeouts.forEach(clearTimeout); };
-    }, []);
+    }, [cometCount]);
     return <>{comets.map(comet => <Comet key={comet.id} {...comet} onImpact={triggerPulse} onFaded={handleFaded}/>)}</>;
 };
-const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
+const Scene: React.FC<SceneProps> = ({ galaxyParams, quality }) => {
     const bloomRef = useRef<{ intensity: number }>(null!);
     const triggerPulse = () => {
         if (bloomRef.current) { bloomRef.current.intensity = 5; }
-        setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = 1.2; } }, 250);
+        setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = quality.bloomIntensity.main; } }, 250);
     };
     return (
         <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
-            <Canvas camera={{ position: [0, 2, 15], fov: 60 }}>
+            <Canvas camera={{ position: [0, 2, 15], fov: 60 }} dpr={quality.dpr}>
                 <Galaxy params={galaxyParams} />
-                <CometsController triggerPulse={triggerPulse} />
+                <CometsController triggerPulse={triggerPulse} cometCount={quality.cometCount}/>
                 <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate={true} autoRotateSpeed={0.2} />
-                <EffectComposer><Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={1.2} /></EffectComposer>
+                <EffectComposer><Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={quality.bloomIntensity.main} /></EffectComposer>
             </Canvas>
         </div>
     );
 };
 
 // ----------------------------------------------------------------------------
-// C.4. 主页面和状态控制器 (已集成新组件)
+// C.4. 主页面和状态控制器 (已集成优化)
 // ----------------------------------------------------------------------------
 export default function Page() {
     const [isClient, setIsClient] = useState(false);
     const [mainContentVisible, setMainContentVisible] = useState(false);
+    
+    // 使用设备检测Hook
+    const deviceType = useDeviceDetect();
+
+    // 优化: 根据设备类型定义不同的质量配置
+    const qualitySettings: QualitySettings = useMemo(() => {
+        switch (deviceType) {
+            case 'mobile':
+                return {
+                    dpr: 1, starfieldCount: 500,
+                    bloomIntensity: { main: 0.8, warp: 15.0 },
+                    galaxyCount: 30000, cometCount: 2, particleDensity: 6,
+                };
+            case 'tablet':
+                return {
+                    dpr: 1.5, starfieldCount: 1000,
+                    bloomIntensity: { main: 1.0, warp: 20.0 },
+                    galaxyCount: 100000, cometCount: 5, particleDensity: 4,
+                };
+            case 'desktop':
+            default:
+                return {
+                    dpr: [1, 2], starfieldCount: 1500,
+                    bloomIntensity: { main: 1.2, warp: 30.0 },
+                    galaxyCount: 200000, cometCount: 8, particleDensity: 3,
+                };
+        }
+    }, [deviceType]);
+    
     const galaxyParams: GalaxyParams = useMemo(() => ({
-        count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
+        count: qualitySettings.galaxyCount, // 使用动态粒子数
+        size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
         randomnessPower: 3, insideColor: '#ff6030', outsideColor: '#1b3984'
-    }), []);
+    }), [qualitySettings.galaxyCount]);
+
     useEffect(() => {
         setIsClient(true);
         if (sessionStorage.getItem('hasVisitedHomePage')) { setMainContentVisible(true); }
     }, []);
     const handleAnimationFinish = () => { setTimeout(() => { setMainContentVisible(true); }, 500); };
 
+    if (!isClient) {
+        // 在客户端完全加载前，可以显示一个简单的占位符或null，防止SSR/hydration错误
+        return null;
+    }
+
     return (
         <div className="relative w-full h-screen bg-[#000] text-white overflow-hidden" style={{ background: 'linear-gradient(to bottom, #000000, #030615)' }}>
             
-            {isClient && !mainContentVisible && (
+            {!mainContentVisible && (
                 <OpeningAnimation 
                     onAnimationFinish={handleAnimationFinish}
                     galaxyColors={{ insideColor: galaxyParams.insideColor, outsideColor: galaxyParams.outsideColor }}
+                    quality={qualitySettings}
                 />
             )}
 
@@ -640,33 +745,22 @@ export default function Page() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 1.5, ease: "easeInOut" }}
                     >
-                        {/* 静态银河背景 (z-0) */}
-                        <Scene galaxyParams={galaxyParams} />
+                        {/* 静态银河背景 (z-0), 传入质量配置 */}
+                        <Scene galaxyParams={galaxyParams} quality={qualitySettings} />
                         
-                        {/* * =================================================================
-                          * 新增点: 集成 “黑洞特效标题” 组件
-                          * =================================================================
-                          * - 使用一个 div 将其包裹，并通过 flex 布局实现居中。
-                          * - z-index 设置为 20，确保它在银河背景 (z-0) 之上。
-                          * - 父 div 设置 pointer-events-none 以允许事件穿透到下面的菜单栏。
-                          * - BlackHoleTitle 组件的 canvas 本身有 pointer-events-auto，
-                          * 可以响应鼠标悬停交互。
-                          */
-                        }
-                        <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                        {/* 优化: 容器采用 flex 布局，以更好地适应不同屏幕尺寸 */}
+                        {/* 在小屏幕上，标题和时间轴垂直堆叠；大屏幕上则按原设计分布 */}
+                        <div className="absolute inset-0 z-10 flex flex-col items-center justify-start pt-12 lg:pt-0 lg:justify-center pointer-events-none">
                             <BlackHoleTitle
                                 title="GALAXY"
                                 subtitle="星河遇见你"
+                                particleDensity={qualitySettings.particleDensity}
+                                deviceType={deviceType}
                             />
                         </div>
 
-                        {/* * =================================================================
-                          * 您原有的 “旋转菜单栏” 组件 (z-10)
-                          * =================================================================
-                          * - 保持不变，位于右下角并可交互。
-                          */
-                        }
-                        <RadialOrbitalTimeline />
+                        {/* 旋转菜单栏 (z-10), 传入设备类型以调整布局 */}
+                        <RadialOrbitalTimeline deviceType={deviceType} />
 
                     </motion.div>
                 )}
