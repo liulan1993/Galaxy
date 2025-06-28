@@ -505,7 +505,7 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
             <motion.div key="animation-wrapper" className="fixed inset-0 z-[100] bg-black" exit={{ opacity: 0, transition: { duration: 1.0, delay: 0.5 } }}>
                 <motion.div className="absolute inset-0 flex items-center justify-center z-10" animate={{ opacity: animationState === 'initial' || animationState === 'textFading' ? 1 : 0, scale: animationState === 'textFading' ? 0.8 : 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}>
                     <div className="w-full max-w-2xl px-4">
-                        <TextShineEffect text="Apex" subtitle="轻触，开启非凡" onClick={handleEnter} />
+                        <TextShineEffect text="Galaxy" subtitle="轻触，开启非凡" onClick={handleEnter} />
                     </div>
                 </motion.div>
                 <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0 }} transition={{ duration: 2.0, ease: "easeIn" }}>
@@ -667,14 +667,30 @@ export default function Page() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 1.5, ease: "easeInOut" }}
                     >
+                        {/* * =================================================================
+                          * 新增代码块：主标题和副标题
+                          * =================================================================
+                          *
+                          * 说明：
+                          * - 使用 absolute 定位将其放置在左上角。
+                          * - `z-20` 确保标题在背景之上，交互式时间轴之下。
+                          * - `pointer-events-none` 允许鼠标事件穿透此图层，
+                          * 避免遮挡背景或时间轴的潜在交互。
+                          * - 使用 Tailwind CSS 进行了响应式和美化处理。
+                        */}
+                        <div className="absolute top-0 left-0 p-8 md:p-12 z-20 pointer-events-none">
+                            <h1 className="text-4xl md:text-5xl font-bold text-white tracking-wider animate-pulse" style={{ animationDuration: '4s' }}>
+                                交互式项目里程碑
+                            </h1>
+                            <p className="mt-4 text-lg md:text-xl text-white/70 max-w-xl">
+                                这是一个交互式3D时间线，展示了我们项目从规划到发布的完整周期和关键节点。您可以点击任何节点查看详情，或点击空白处恢复自动旋转。
+                            </p>
+                        </div>
+                        
                         {/* 静态银河背景 */}
                         <Scene galaxyParams={galaxyParams} />
                         
-                        {/* *
-                          * 修改点: 
-                          * 将原来的欢迎语替换为新的“旋转菜单栏”组件。
-                          *
-                        */}
+                        {/* 旋转菜单栏 */}
                         <RadialOrbitalTimeline />
 
                     </motion.div>

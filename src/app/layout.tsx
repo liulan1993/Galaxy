@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Apex",
-  description: "Apex",
+  title: "Galaxy",
+  description: "Galaxy",
 };
 
 export default function RootLayout({
