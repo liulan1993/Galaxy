@@ -296,16 +296,28 @@ const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse
 
 const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     const groupRef = useRef<THREE.Group>(null!);
-    const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null); // 修复点: 为OrbitControls创建ref
-    const bloomRef = useRef<{ intensity: number }>(null!);
-    const triggerPulse = () => { if (bloomRef.current) { bloomRef.current.intensity = 5; } setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = 1.2; } }, 250); };
+    const controlsRef = useRef<any>(null); // 修复点: 为ref使用any类型以获得最大兼容性
+    const bloomRef = useRef<any>(null!); // 修复点: 为ref使用any类型以获得最大兼容性
+    
+    const triggerPulse = () => { 
+        if (controlsRef.current) { 
+            (controlsRef.current as any).intensity = 5; 
+        } 
+        setTimeout(() => { 
+            if (controlsRef.current) { 
+                (controlsRef.current as any).intensity = 1.2; 
+            } 
+        }, 250); 
+    };
 
     useFrame((_, delta) => { 
         if (groupRef.current) { 
             groupRef.current.rotation.y += delta * 0.02; 
         }
-        // 修复点: 在每一帧更新控制器以应用阻尼效果
-        controlsRef.current?.update();
+        // 在每一帧更新控制器以应用阻尼效果
+        if (controlsRef.current) {
+            (controlsRef.current as any).update();
+        }
     });
 
     return (
@@ -319,9 +331,7 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
                     <OrbitalMenu timelineData={timelineData} />
                 </group>
                 <CometsController triggerPulse={triggerPulse} />
-                {/* 修复点: 添加ref和enableDamping */}
                 <OrbitControls ref={controlsRef} enableDamping autoRotate={false} />
-                {/* 修复点: 恢复EffectComposer */}
                 <EffectComposer>
                     <Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={1.2} />
                 </EffectComposer>
