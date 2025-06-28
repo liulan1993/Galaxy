@@ -231,7 +231,7 @@ function RadialOrbitalTimeline() {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    const radius = 280;
+    const radius = 90; // 动态半径，增加视觉层次感
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian);
     const y = radius * Math.sin(radian);
@@ -268,11 +268,12 @@ function RadialOrbitalTimeline() {
     >
       <GlobalTimelineStyles />
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        <div
-          className="absolute w-full h-full flex items-center justify-center"
-          ref={orbitRef}
-          style={{
-            perspective: "1000px",
+        <div 
+          className="absolute w-full h-full flex items-center justify-center" 
+          ref={orbitRef} 
+          style={{ 
+            perspective: "1000px", 
+            transform: 'translateX(42vw) translateY(35vh)' 
           }}
         >
           <div
@@ -285,6 +286,15 @@ function RadialOrbitalTimeline() {
             <div className="w-5 h-5 rounded-full bg-white opacity-95 blur-sm"></div>
           </div>
           
+          {/* * =================================================================
+            * 修改点 1 (根据 image_872758.jpg): 移除轨道背景圈
+            * 下面的 div 元素已被注释掉，以移除轨道的可视化背景。
+            * =================================================================
+            */
+          }
+          {/* <div className="absolute w-80 h-80 rounded-full border border-white/10"></div> */}
+
+          {/* 轨道节点 */}
           {timelineData.map((item, index) => {
             const position = calculateNodePosition(index, timelineData.length);
             const isExpanded = expandedItems[item.id];
@@ -308,6 +318,12 @@ function RadialOrbitalTimeline() {
                   {item.title}
                 </div>
                 {isExpanded && (
+                  /* * =================================================================
+                   * 修改点 2 (根据 image_872450.jpg): 调整卡片弹出方向
+                   * 将 'top-20' 修改为 'bottom-20'，使卡片向上弹出。
+                   * 同时将连接线从 -top-3 移动到 -bottom-3。
+                   * =================================================================
+                   */
                   <Card className="absolute bottom-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
@@ -361,31 +377,20 @@ function RadialOrbitalTimeline() {
 
 // ============================================================================
 // B. 您原始的 page.tsx 组件 (已修改)
-// 下方的代码是您原始的页面组件，我已根据您的需求进行了修改。
+// 下方的代码是您原始的页面组件，我只修改了主内容显示区域。
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// B.1. 类型定义 (已修改)
+// B.1. 类型定义 (原始)
 // ----------------------------------------------------------------------------
 interface StarfieldProps {
   speed?: number; particleCount?: number; warpSpeedActive?: boolean; accelerationDuration?: number; maxSpeed?: number; insideColor: string; outsideColor: string;
 }
 interface GalaxyParams {
   count: number; size: number; radius: number; branches: number; spin: number; randomness: number; randomnessPower: number; insideColor: string; outsideColor: string;
-  shape: 'spiral' | 'disk'; 
-  rotationX?: number; 
-  bloomIntensity: number; 
 }
 interface GalaxyProps { params: GalaxyParams; }
 interface SceneProps { galaxyParams: GalaxyParams; }
-
-const galaxyPresets: GalaxyParams[] = [
-  { count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5, randomnessPower: 3, insideColor: '#add8e6', outsideColor: '#ff8c00', shape: 'spiral', bloomIntensity: 1.5, rotationX: -0.4 },
-  { count: 250000, size: 0.012, radius: 12, branches: 2, spin: 0.5, randomness: 0.8, randomnessPower: 2.5, insideColor: '#ffd700', outsideColor: '#4169e1', shape: 'spiral', bloomIntensity: 1.8, rotationX: -0.4 },
-  { count: 300000, size: 0.01, radius: 11, branches: 4, spin: 1.0, randomness: 0.4, randomnessPower: 2.5, insideColor: '#FFFFFF', outsideColor: '#6495ED', shape: 'spiral', bloomIntensity: 1.2, rotationX: -0.4 },
-  { count: 150000, size: 0.02, radius: 6, branches: 1, spin: 0, randomness: 1.0, randomnessPower: 1, insideColor: '#FFFFFF', outsideColor: '#FFA500', shape: 'disk', bloomIntensity: 2.5, rotationX: -0.6 },
-  { count: 200000, size: 0.018, radius: 12, branches: 2, spin: 0.2, randomness: 1.5, randomnessPower: 2, insideColor: '#add8e6', outsideColor: '#ff4500', shape: 'spiral', bloomIntensity: 2.0, rotationX: -Math.PI / 2 + 0.15 },
-];
 
 // ----------------------------------------------------------------------------
 // B.2. 开场动画核心组件 (原始)
@@ -468,9 +473,9 @@ const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, 
 const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?: string; onClick?: () => void; }) => (
     <svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
         <defs>
-            <linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030"></stop><stop offset="50%" stopColor="#ffffff"></stop><stop offset="100%" stopColor="#1b3984"></stop></linearGradient>
-            <motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}><stop offset="0%" stopColor="white"></stop><stop offset="100%" stopColor="black"></stop></motion.radialGradient>
-            <mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)"></rect></mask>
+            <linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030" /><stop offset="50%" stopColor="#ffffff" /><stop offset="100%" stopColor="#1b3984" /></linearGradient>
+            <motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}><stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="black" /></motion.radialGradient>
+            <mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)" /></mask>
         </defs>
         <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
         <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
@@ -518,125 +523,39 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
 }
 
 // ----------------------------------------------------------------------------
-// B.3. 主场景组件 (已修改)
+// B.3. 主场景组件 (原始)
 // ----------------------------------------------------------------------------
-
-const generateGalaxy = (params: GalaxyParams): [Float32Array, Float32Array] => {
-    const positions = new Float32Array(params.count * 3);
-    const colors = new Float32Array(params.count * 3);
-    const colorInside = new THREE.Color(params.insideColor);
-    const colorOutside = new THREE.Color(params.outsideColor);
-
-    for (let i = 0; i < params.count; i++) {
-        const i3 = i * 3;
-        const radius = Math.random() * params.radius;
-        let x, y, z;
-
-        if (params.shape === 'disk') {
-            const angle = Math.random() * Math.PI * 2;
-            x = Math.cos(angle) * radius;
-            z = Math.sin(angle) * radius;
-            y = (Math.random() - 0.5) * 0.2 * (radius / params.radius);
-        } else {
-            const spinAngle = radius * params.spin;
+const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
+    const pointsRef = useRef<THREE.Points>(null!);
+    const [positions, colors] = useMemo(() => {
+        const positions = new Float32Array(params.count * 3); const colors = new Float32Array(params.count * 3);
+        const colorInside = new THREE.Color(params.insideColor); const colorOutside = new THREE.Color(params.outsideColor);
+        for (let i = 0; i < params.count; i++) {
+            const i3 = i * 3;
+            const radius = Math.random() * params.radius; const spinAngle = radius * params.spin;
             const branchAngle = (i % params.branches) / params.branches * Math.PI * 2;
             const randomX = Math.pow(Math.random(), params.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * radius;
             const randomY = Math.pow(Math.random(), params.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * radius;
             const randomZ = Math.pow(Math.random(), params.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * radius;
-            x = Math.cos(branchAngle + spinAngle) * radius + randomX;
-            y = randomY;
-            z = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+            positions[i3] = Math.cos(branchAngle + spinAngle) * radius + randomX;
+            positions[i3 + 1] = randomY;
+            positions[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
+            const mixedColor = colorInside.clone().lerp(colorOutside, radius / params.radius);
+            colors[i3] = mixedColor.r; colors[i3 + 1] = mixedColor.g; colors[i3 + 2] = mixedColor.b;
         }
-
-        positions[i3] = x;
-        positions[i3 + 1] = y;
-        positions[i3 + 2] = z;
-
-        const mixedColor = colorInside.clone().lerp(colorOutside, radius / params.radius);
-        colors[i3] = mixedColor.r;
-        colors[i3 + 1] = mixedColor.g;
-        colors[i3 + 2] = mixedColor.b;
-    }
-    return [positions, colors];
-};
-
-
-const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
-    const pointsRef = useRef<THREE.Points>(null!);
-    const transitionRef = useRef({ inProgress: false, startTime: 0, duration: 8000 });
-
-    const bufferDataRef = useRef<{
-        positions: Float32Array | null,
-        colors: Float32Array | null,
-        targetPositions: Float32Array | null,
-        targetColors: Float32Array | null
-    }>({ positions: null, colors: null, targetPositions: null, targetColors: null });
-
-    useEffect(() => {
-        if (!bufferDataRef.current.positions) {
-            const [positions, colors] = generateGalaxy(params);
-            bufferDataRef.current.positions = positions;
-            bufferDataRef.current.colors = colors;
-            if (pointsRef.current) {
-                pointsRef.current.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-                pointsRef.current.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-            }
-            return;
-        }
-
-        const [targetPositions, targetColors] = generateGalaxy(params);
-        bufferDataRef.current.targetPositions = targetPositions;
-        bufferDataRef.current.targetColors = targetColors;
-
-        transitionRef.current = { inProgress: true, startTime: Date.now(), duration: 8000 };
-
+        return [positions, colors];
     }, [params]);
-
-    useFrame((_, delta) => {
-        if (pointsRef.current) {
-            pointsRef.current.rotation.y += delta * 0.05;
-        }
-
-        const { inProgress, startTime, duration } = transitionRef.current;
-        const { positions, colors, targetPositions, targetColors } = bufferDataRef.current;
-
-        if (inProgress && positions && colors && targetPositions && targetColors) {
-            const elapsedTime = Date.now() - startTime;
-            const progress = Math.min(elapsedTime / duration, 1.0);
-            const easedProgress = 0.5 - 0.5 * Math.cos(progress * Math.PI);
-
-            for (let i = 0; i < params.count; i++) {
-                const i3 = i * 3;
-                positions[i3] = THREE.MathUtils.lerp(positions[i3], targetPositions[i3], easedProgress);
-                positions[i3 + 1] = THREE.MathUtils.lerp(positions[i3 + 1], targetPositions[i3 + 1], easedProgress);
-                positions[i3 + 2] = THREE.MathUtils.lerp(positions[i3 + 2], targetPositions[i3 + 2], easedProgress);
-                colors[i3] = THREE.MathUtils.lerp(colors[i3], targetColors[i3], easedProgress);
-                colors[i3 + 1] = THREE.MathUtils.lerp(colors[i3 + 1], targetColors[i3 + 1], easedProgress);
-                colors[i3 + 2] = THREE.MathUtils.lerp(colors[i3 + 2], targetColors[i3 + 2], easedProgress);
-            }
-
-            if (pointsRef.current) {
-                pointsRef.current.geometry.attributes.position.needsUpdate = true;
-                pointsRef.current.geometry.attributes.color.needsUpdate = true;
-            }
-
-            if (progress >= 1.0) {
-                transitionRef.current.inProgress = false;
-                bufferDataRef.current.positions?.set(targetPositions);
-                bufferDataRef.current.colors?.set(targetColors);
-            }
-        }
-    });
-    
+    useFrame((_, delta) => { if (pointsRef.current) { pointsRef.current.rotation.y += delta * 0.05; } });
     return (
-        <points ref={pointsRef} rotation-x={params.rotationX ?? -0.4} position-y={-2}>
-            <bufferGeometry />
+        <points ref={pointsRef} rotation-x={-0.4} position-y={-2}>
+            <bufferGeometry>
+                <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+                <bufferAttribute attach="attributes-color" args={[colors, 3]} />
+            </bufferGeometry>
             <pointsMaterial size={params.size} sizeAttenuation depthWrite={false} blending={THREE.AdditiveBlending} vertexColors />
         </points>
     );
 };
-
-
 const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: THREE.Vector3; size: number; duration: number; onImpact: () => void; onFaded: (id: string) => void;}> = ({ id, startPosition, controlPoint, size, duration, onImpact, onFaded }) => {
     const meshRef = useRef<THREE.Mesh>(null!); const materialRef = useRef<THREE.MeshBasicMaterial>(null!);
     const [status, setStatus] = useState<'flying' | 'dying' | 'dead'>('flying');
@@ -660,18 +579,16 @@ const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: T
     if (status === 'dying' && finalPosition) return cometMesh;
     return null;
 };
-
-const CometsController: React.FC<{ triggerPulse: () => void, galaxyRadius: number }> = ({ triggerPulse, galaxyRadius }) => {
+const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse }) => {
     const [comets, setComets] = useState<Omit<React.ComponentProps<typeof Comet>, 'onImpact' | 'onFaded' | 'key'>[]>([]);
     const handleFaded = (cometId: string) => setComets(prev => prev.filter(c => c.id !== cometId));
-    
     useEffect(() => {
         const timeouts: NodeJS.Timeout[] = [];
         const scheduleComets = () => {
             for (let i = 0; i < 8; i++) {
                 const delay = Math.random() * 15000;
                 timeouts.push(setTimeout(() => {
-                    const spherical = new THREE.Spherical(galaxyRadius * 2 + Math.random() * 15, Math.random() * Math.PI, Math.random() * Math.PI * 2);
+                    const spherical = new THREE.Spherical(20 + Math.random() * 15, Math.random() * Math.PI, Math.random() * Math.PI * 2);
                     const startPosition = new THREE.Vector3().setFromSpherical(spherical);
                     const midPoint = startPosition.clone().multiplyScalar(0.5);
                     const offsetDirection = new THREE.Vector3().crossVectors(startPosition, new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize()).normalize();
@@ -684,36 +601,23 @@ const CometsController: React.FC<{ triggerPulse: () => void, galaxyRadius: numbe
         };
         scheduleComets(); const intervalId = setInterval(scheduleComets, 15000);
         return () => { clearInterval(intervalId); timeouts.forEach(clearTimeout); };
-    }, [galaxyRadius]);
-
+    }, []);
     return <>{comets.map(comet => <Comet key={comet.id} {...comet} onImpact={triggerPulse} onFaded={handleFaded}/>)}</>;
 };
-
 const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     const bloomRef = useRef<{ intensity: number }>(null!);
-    
-    useFrame((_, delta) => {
-        if(bloomRef.current) {
-            const currentIntensity = bloomRef.current.intensity;
-            const targetIntensity = galaxyParams.bloomIntensity;
-            bloomRef.current.intensity = THREE.MathUtils.lerp(currentIntensity, targetIntensity, delta * 0.5);
-        }
-    });
-
     const triggerPulse = () => {
-        if (bloomRef.current) { 
-            bloomRef.current.intensity = galaxyParams.bloomIntensity + 3.0;
-        }
+        if (bloomRef.current) { bloomRef.current.intensity = 5; }
+        setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = 1.2; } }, 250);
     };
-    
     return (
         <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
             <Canvas camera={{ position: [0, 2, 15], fov: 60 }}>
                 <Galaxy params={galaxyParams} />
-                <CometsController triggerPulse={triggerPulse} galaxyRadius={galaxyParams.radius} />
+                <CometsController triggerPulse={triggerPulse} />
                 <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate={true} autoRotateSpeed={0.2} />
                 <EffectComposer>
-                    <Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={galaxyParams.bloomIntensity} />
+                    <Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={1.2} />
                 </EffectComposer>
             </Canvas>
         </div>
@@ -721,22 +625,16 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
 };
 
 // ----------------------------------------------------------------------------
-// B.4. 主页面和状态控制器 (已修改)
+// B.4. 主页面和状态控制器 (已集成新组件)
 // ----------------------------------------------------------------------------
 export default function Page() {
     const [isClient, setIsClient] = useState(false);
     const [mainContentVisible, setMainContentVisible] = useState(false);
-    
-    const [presetIndex, setPresetIndex] = useState(0);
 
-    useEffect(() => {
-        const intervalId = setInterval(() => {
-            setPresetIndex(current => (current + 1) % galaxyPresets.length);
-        }, 60000);
-        return () => clearInterval(intervalId);
-    }, []);
-
-    const galaxyParams = galaxyPresets[presetIndex];
+    const galaxyParams: GalaxyParams = useMemo(() => ({
+        count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
+        randomnessPower: 3, insideColor: '#ff6030', outsideColor: '#1b3984'
+    }), []);
 
     useEffect(() => {
         setIsClient(true);
@@ -746,18 +644,9 @@ export default function Page() {
     }, []);
 
     const handleAnimationFinish = () => {
-        // [BUG修复] 增加延时以确保开场动画的退场动效（持续1.5秒）完全结束后，
-        // 再挂载和渲染主内容组件。此前的500ms延时过短，导致新旧组件
-        // 在动画过渡期间同时存在于渲染树中，这极易引发WebGL上下文的初始化冲突和
-        // 不可预知的客户端异常，从而导致页面崩溃。
         setTimeout(() => {
             setMainContentVisible(true);
-        }, 1600); // 动效1.5秒 + 100毫秒缓冲
-    };
-    
-    const openingGalaxyColors = {
-        insideColor: galaxyPresets[0].insideColor,
-        outsideColor: galaxyPresets[0].outsideColor
+        }, 500);
     };
 
     return (
@@ -766,7 +655,7 @@ export default function Page() {
             {isClient && !mainContentVisible && (
                 <OpeningAnimation 
                     onAnimationFinish={handleAnimationFinish}
-                    galaxyColors={openingGalaxyColors}
+                    galaxyColors={{ insideColor: galaxyParams.insideColor, outsideColor: galaxyParams.outsideColor }}
                 />
             )}
 
@@ -778,8 +667,14 @@ export default function Page() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 1.5, ease: "easeInOut" }}
                     >
+                        {/* 静态银河背景 */}
                         <Scene galaxyParams={galaxyParams} />
                         
+                        {/* *
+                          * 修改点: 
+                          * 将原来的欢迎语替换为新的“旋转菜单栏”组件。
+                          *
+                        */}
                         <RadialOrbitalTimeline />
 
                     </motion.div>
