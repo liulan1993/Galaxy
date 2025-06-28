@@ -231,7 +231,7 @@ function RadialOrbitalTimeline() {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    const radius = 110;
+    const radius = 90 + (index % 5) * 20; // 动态半径，增加视觉层次感
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian);
     const y = radius * Math.sin(radian);
