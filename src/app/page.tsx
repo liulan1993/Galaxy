@@ -231,7 +231,8 @@ function RadialOrbitalTimeline() {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    const radius = 200;
+    {/* 修改点 2: 半径缩小 */}
+    const radius = 160;
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian);
     const y = radius * Math.sin(radian);
@@ -268,14 +269,26 @@ function RadialOrbitalTimeline() {
     >
       <GlobalTimelineStyles />
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        <div className="absolute w-full h-full flex items-center justify-center" ref={orbitRef} style={{ perspective: "1000px" }}>
-          {/* 中心装饰 */}
-          <div className="absolute w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 via-blue-500 to-teal-500 animate-pulse flex items-center justify-center z-10">
-            <div className="absolute w-20 h-20 rounded-full border border-white/20 animate-ping opacity-70"></div>
-            <div className="absolute w-24 h-24 rounded-full border border-white/10 animate-ping opacity-50" style={{ animationDelay: "0.5s" }}></div>
-            <div className="w-8 h-8 rounded-full bg-white/80 backdrop-blur-md"></div>
+        {/* 修改点 3: 移动到指定位置 */}
+        <div 
+          className="absolute w-full h-full flex items-center justify-center" 
+          ref={orbitRef} 
+          style={{ 
+            perspective: "1000px", 
+            transform: 'translateX(20vw) translateY(25vh)' 
+          }}
+        >
+          {/* 修改点 1: 中心图案变成星系辉光效果 */}
+          <div
+            className="absolute w-16 h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse"
+            style={{
+              boxShadow: '0 0 35px 8px #ff6030, 0 0 60px 20px rgba(255, 165, 0, 0.5), 0 0 90px 45px rgba(255, 255, 255, 0.1)',
+              animationDuration: '4s',
+            }}
+          >
+            <div className="w-5 h-5 rounded-full bg-white opacity-95 blur-sm"></div>
           </div>
-          <div className="absolute w-96 h-96 rounded-full border border-white/10"></div>
+          <div className="absolute w-80 h-80 rounded-full border border-white/10"></div>
 
           {/* 轨道节点 */}
           {timelineData.map((item, index) => {
