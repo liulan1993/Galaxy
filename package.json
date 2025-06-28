@@ -24,6 +24,7 @@
     "framer-motion": "^12.18.1",
     "gsap": "^3.13.0",
     "lucide-react": "^0.518.0",
+    "mobile-detect": "^1.4.5",
     "next": "15.3.4",
     "next-intl": "^4.1.0",
     "react": "^19.0.0",
