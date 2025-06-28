@@ -248,15 +248,28 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
             const position = calculateNodePosition(index, timelineData.length);
             const isExpanded = expandedItems[item.id]; const isRelated = isRelatedToActive(item.id); const isPulsing = pulseEffect[item.id]; const Icon = item.icon;
             const nodeStyle: React.CSSProperties = { transform: `translate(${position.x}px, ${position.y}px)`, zIndex: isExpanded ? 200 : position.zIndex, opacity: isExpanded ? 1 : position.opacity, };
+            
             // 优化: 移动端卡片位置调整
             const cardPositionClass = deviceType === 'mobile' ? 'bottom-16' : 'bottom-20';
+
+            // 新增: 动态调整卡片左右位置，防止其被屏幕边缘截断
+            let cardHorizontalPositionClass = 'left-1/2 -translate-x-1/2'; // 默认居中
+            // 当节点在轨道的右半部分时，将卡片锚定到节点的右侧，使其向左展开
+            if (position.x > orbitRadius * 0.4) {
+              cardHorizontalPositionClass = 'right-8'; // right-8 表示卡片右边缘在节点中心点右侧 2rem 处
+            } 
+            // 当节点在轨道的左半部分时，将卡片锚定到节点的左侧，使其向右展开
+            else if (position.x < -orbitRadius * 0.4) {
+              cardHorizontalPositionClass = 'left-8'; // left-8 表示卡片左边缘在节点中心点左侧 2rem 处
+            }
+
             return (
               <div key={item.id} ref={(el) => { nodeRefs.current[item.id] = el; }} className="absolute transition-all duration-700 cursor-pointer" style={nodeStyle} onClick={(e) => { e.stopPropagation(); toggleItem(item.id); }}>
                 <div className={`absolute rounded-full -inset-1 ${isPulsing ? "animate-pulse duration-1000" : ""}`} style={{ background: `radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)`, width: `${item.energy * 0.5 + 40}px`, height: `${item.energy * 0.5 + 40}px`, left: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, top: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, }} ></div>
                 <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={deviceType === 'mobile' ? 12 : 16} /> </div>
                 <div className={`absolute top-10 md:top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}>{item.title}</div>
                 {isExpanded && (
-                  <Card className={`absolute left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible ${cardPositionClass}`}>
+                  <Card className={`absolute w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible ${cardPositionClass} ${cardHorizontalPositionClass}`}>
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center"><Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>{item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"}</Badge><span className="text-xs font-mono text-white/50">{item.date}</span></div>
