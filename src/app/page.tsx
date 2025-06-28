@@ -231,8 +231,7 @@ function RadialOrbitalTimeline() {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    {/* 修改点 2: 半径缩小 */}
-    const radius = 160;
+    const radius = 130;
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian);
     const y = radius * Math.sin(radian);
@@ -269,16 +268,15 @@ function RadialOrbitalTimeline() {
     >
       <GlobalTimelineStyles />
       <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
-        {/* 修改点 3: 移动到指定位置 */}
+        {/* 修改点: 移动到屏幕最右下角 */}
         <div 
           className="absolute w-full h-full flex items-center justify-center" 
           ref={orbitRef} 
           style={{ 
             perspective: "1000px", 
-            transform: 'translateX(20vw) translateY(25vh)' 
+            transform: 'translateX(40vw) translateY(38vh)' 
           }}
         >
-          {/* 修改点 1: 中心图案变成星系辉光效果 */}
           <div
             className="absolute w-16 h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse"
             style={{
