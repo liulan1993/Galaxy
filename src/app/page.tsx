@@ -15,6 +15,9 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { Slot } from "@radix-ui/react-slot";
 import { ArrowRight, Link, Zap, Calendar, Code, FileText, User, Clock } from "lucide-react";
+// 修复点: 导入精确的类型以供 ref 使用
+import { BloomEffect } from 'postprocessing';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 
 
 // ============================================================================
@@ -296,16 +299,15 @@ const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse
 
 const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     const groupRef = useRef<THREE.Group>(null!);
-    const controlsRef = useRef<any>(null); // 修复点: 为ref使用any类型以获得最大兼容性
-    const bloomRef = useRef<any>(null!); // 修复点: 为ref使用any类型以获得最大兼容性
-    
+    const controlsRef = useRef<OrbitControlsImpl>(null);
+    const bloomRef = useRef<BloomEffect>(null!);
     const triggerPulse = () => { 
-        if (controlsRef.current) { 
-            (controlsRef.current as any).intensity = 5; 
+        if (bloomRef.current) { 
+            bloomRef.current.intensity = 5; 
         } 
         setTimeout(() => { 
-            if (controlsRef.current) { 
-                (controlsRef.current as any).intensity = 1.2; 
+            if (bloomRef.current) { 
+                bloomRef.current.intensity = 1.2; 
             } 
         }, 250); 
     };
@@ -314,10 +316,7 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
         if (groupRef.current) { 
             groupRef.current.rotation.y += delta * 0.02; 
         }
-        // 在每一帧更新控制器以应用阻尼效果
-        if (controlsRef.current) {
-            (controlsRef.current as any).update();
-        }
+        controlsRef.current?.update();
     });
 
     return (
@@ -325,7 +324,6 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
             <GlobalTimelineStyles />
             <Canvas camera={{ position: [0, 4, 15], fov: 60 }}>
                 <ambientLight intensity={0.2} />
-                {/* 旋转组，用于同步星系和菜单的旋转 */}
                 <group ref={groupRef} rotation-x={-0.4} position-y={-2}>
                     <Galaxy params={galaxyParams} />
                     <OrbitalMenu timelineData={timelineData} />
