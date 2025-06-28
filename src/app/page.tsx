@@ -139,7 +139,6 @@ const timelineData: TimelineItem[] = [
   { id: 5, title: "发布", date: "2024年5月", content: "最终部署与正式发布。", category: "Release", icon: Clock, relatedIds: [4], status: "pending", energy: 10, },
 ];
 
-// 新增: 接收 deviceType 以动态调整布局
 function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [rotationAngle, setRotationAngle] = useState<number>(0);
@@ -150,13 +149,29 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
   const orbitRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // 优化: 根据设备类型调整轨道半径
-  const orbitRadius = useMemo(() => {
+  // 修复: 动态计算轨道半径和容器尺寸以实现边缘对齐
+  const { orbitRadius, containerSize } = useMemo(() => {
+    let radius: number;
+    // 节点轨道半径
     switch (deviceType) {
-      case 'mobile': return 65; // 移动端半径更小
-      case 'tablet': return 80;
-      case 'desktop': default: return 95; // 桌面端半径更大以适应角落布局
+      case 'mobile':
+        radius = 65;
+        break;
+      case 'tablet':
+        radius = 80;
+        break;
+      case 'desktop':
+      default:
+        radius = 120;
+        break;
     }
+    // 节点最外层光晕的半径（能量最大时 width: 90px -> radius: 45px)
+    const nodeOuterRadius = 45; 
+    // 整个系统的总半径 = 轨道半径 + 节点光晕半径
+    const totalRadius = radius + nodeOuterRadius;
+    // 容器尺寸应为总半径的两倍，以确保圆形完全容纳在内
+    const size = totalRadius * 2;
+    return { orbitRadius: radius, containerSize: size };
   }, [deviceType]);
 
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -224,17 +239,18 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
       default: return "text-white bg-black/40 border-white/50";
     }
   };
-
-  // 修复: 调整容器布局，使其在所有设备上都位于右下角
+  
+  // 修复: 移除外层容器的 padding
   return (
     <div 
-        className="absolute inset-0 flex items-end justify-end p-2 sm:p-4 md:p-8 pointer-events-none"
+        className="absolute inset-0 flex items-end justify-end pointer-events-none"
         ref={containerRef} 
     >
       <GlobalTimelineStyles />
-      {/* 修复: 为轨道设定一个固定的、响应式的尺寸，并使其可交互 */}
+      {/* 修复: 使用动态计算的尺寸，并使其可交互 */}
       <div 
-          className="relative w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] md:w-[400px] md:h-[400px] pointer-events-auto"
+          className="relative pointer-events-auto"
+          style={{ width: `${containerSize}px`, height: `${containerSize}px` }}
           onClick={handleContainerClick}
       >
         <div 
@@ -251,8 +267,6 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
             const nodeStyle: React.CSSProperties = { transform: `translate(${position.x}px, ${position.y}px)`, zIndex: isExpanded ? 200 : position.zIndex, opacity: isExpanded ? 1 : position.opacity, };
             
             const cardPositionClass = deviceType === 'mobile' ? 'bottom-16' : 'bottom-20';
-
-            // 修复: 由于组件已固定在右下角，为防止卡片被屏幕边缘截断，所有卡片都应向左展开
             const cardHorizontalPositionClass = 'right-8';
 
             return (
