@@ -97,7 +97,7 @@ const MenuNode: React.FC<{
     onClick: () => void;
     onToggleRelated: (id: number) => void;
 }> = ({ item, position, isExpanded, isRelated, onClick, onToggleRelated }) => {
-    const { icon: Icon } = item; // 修复了这里的解构错误
+    const { icon: Icon } = item;
     const [isHovered, setIsHovered] = useState(false);
     const getStatusStyles = (status: TimelineItem["status"]): string => {
         switch (status) {
@@ -260,7 +260,7 @@ const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, 
   if (!particleTexture) return null;
   return (<points ref={ref}><bufferGeometry><bufferAttribute attach="attributes-position" args={[positions, 3]} /><bufferAttribute attach="attributes-color" args={[colors, 3]} /></bufferGeometry><pointsMaterial size={0.05} sizeAttenuation map={particleTexture} transparent depthWrite={false} blending={THREE.AdditiveBlending} vertexColors /></points>);
 };
-const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?: string; onClick?: () => void; }) => (<svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}><defs><linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030" /><stop offset="50%" stopColor="#ffffff" /><stop offset="100%" stopColor="#1b3984" /></linearGradient><motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}><stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="black" /></motion.radialGradient><mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)" /></mask></defs><text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text><text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>{subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text></>)}</svg>);
+const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?: string; onClick?: () => void; }) => (<svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" className="select-none cursor-pointer" onClick={onClick}><defs><linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030" /><stop offset="50%" stopColor="#ffffff" /><stop offset="100%" stopColor="#1b3984" /></linearGradient><motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}><stop offset="0%" stopColor="white" /><stop offset="100%" stopColor="black" /></motion.radialGradient><mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)" /></mask></defs><text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text><text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>{subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text></>)}</svg>);
 const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; } }> = ({ onAnimationFinish, galaxyColors }) => {
   const [animationState, setAnimationState] = useState('initial'); const [isAnimationVisible, setIsAnimationVisible] = useState(true);
   const handleEnter = () => { if (animationState === 'initial') { sessionStorage.setItem('hasVisitedHomePage', 'true'); setAnimationState('textFading'); setTimeout(() => setAnimationState('warping'), 1500); setTimeout(() => { setIsAnimationVisible(false); onAnimationFinish(); }, 1500 + 1500); } };
@@ -296,9 +296,18 @@ const CometsController: React.FC<{ triggerPulse: () => void }> = ({ triggerPulse
 
 const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     const groupRef = useRef<THREE.Group>(null!);
+    const controlsRef = useRef<React.ElementRef<typeof OrbitControls>>(null); // 修复点: 为OrbitControls创建ref
     const bloomRef = useRef<{ intensity: number }>(null!);
     const triggerPulse = () => { if (bloomRef.current) { bloomRef.current.intensity = 5; } setTimeout(() => { if (bloomRef.current) { bloomRef.current.intensity = 1.2; } }, 250); };
-    useFrame((_, delta) => { if (groupRef.current) { groupRef.current.rotation.y += delta * 0.02; } });
+
+    useFrame((_, delta) => { 
+        if (groupRef.current) { 
+            groupRef.current.rotation.y += delta * 0.02; 
+        }
+        // 修复点: 在每一帧更新控制器以应用阻尼效果
+        controlsRef.current?.update();
+    });
+
     return (
         <div className="absolute inset-0 w-full h-full z-0 pointer-events-auto">
             <GlobalTimelineStyles />
@@ -310,7 +319,9 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
                     <OrbitalMenu timelineData={timelineData} />
                 </group>
                 <CometsController triggerPulse={triggerPulse} />
-                <OrbitControls enableZoom={true} enablePan={true} enableRotate={true} autoRotate={false} maxPolarAngle={Math.PI / 1.5} minPolarAngle={Math.PI / 3} />
+                {/* 修复点: 添加ref和enableDamping */}
+                <OrbitControls ref={controlsRef} enableDamping autoRotate={false} />
+                {/* 修复点: 恢复EffectComposer */}
                 <EffectComposer>
                     <Bloom ref={bloomRef} luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={1.2} />
                 </EffectComposer>
