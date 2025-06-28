@@ -133,11 +133,20 @@ function RadialOrbitalTimeline() {
       Object.keys(newState).forEach((key) => { if (parseInt(key) !== id) { newState[parseInt(key)] = false; } });
       newState[id] = !prev[id];
       if (!prev[id]) {
-        setActiveNodeId(id); setAutoRotate(false);
+        setActiveNodeId(id);
+        // 手机端点击菜单项时，不再强制居中，而是保持菜单栏位置，让卡片在左侧打开
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+          setAutoRotate(false); // 停止自动旋转
+          // 不调用 centerViewOnNode，避免菜单栏跳动
+        } else {
+          setAutoRotate(false);
+          centerViewOnNode(id);
+        }
+        
         const relatedItems = getRelatedItems(id);
         const newPulseEffect: Record<number, boolean> = {};
         relatedItems.forEach((relId) => { newPulseEffect[relId] = true; });
-        setPulseEffect(newPulseEffect); centerViewOnNode(id);
+        setPulseEffect(newPulseEffect);
       } else {
         setActiveNodeId(null); setAutoRotate(true); setPulseEffect({});
       }
@@ -156,10 +165,7 @@ function RadialOrbitalTimeline() {
     const nodeIndex = timelineData.findIndex((item) => item.id === nodeId);
     const totalNodes = timelineData.length;
     const targetAngle = (nodeIndex / totalNodes) * 360;
-    // 旋转到目标节点，使其尽量居中。同时考虑菜单栏在右下角，需要调整偏移
-    // 原始 transform: 'translateX(41vw) translateY(35vh)'
-    // 为了让卡片在手机端居中且不被遮挡，可以在其展开时，将整个轨道视图向左上方微调
-    setRotationAngle(270 - targetAngle); // 调整旋转中心
+    setRotationAngle(270 - targetAngle);
   };
 
   const calculateNodePosition = (index: number, total: number) => {
@@ -197,15 +203,12 @@ function RadialOrbitalTimeline() {
 
     // 针对手机端调整卡片显示位置
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      // 当有卡片展开时，将整个轨道视图向左上方移动，为卡片留出空间
-      if (Object.values(expandedItems).some(Boolean)) {
-        translateX = '10vw'; // 菜单栏整体向左移，给卡片留出更多空间
-        translateY = '15vh'; // 菜单栏整体向上移
-      } else {
-        // 无卡片展开时，保持原始位置，确保菜单栏在右下角
-        translateX = '41vw';
-        translateY = '35vh';
-      }
+      // 当有卡片展开时，保持旋转菜单栏不动，卡片自身调整位置
+      // 所以这里不再移动整个轨道视图
+      // 这里的逻辑是确保菜单栏本身在右下角，如果卡片展开不移动整个菜单栏
+      // 卡片会通过其自身的 CSS 样式调整位置
+      translateX = '41vw'; // 保持菜单栏在右侧
+      translateY = '35vh'; // 保持菜单栏在底部
     }
 
     return { perspective: "1000px", transform: `translateX(${translateX}) translateY(${translateY})` };
@@ -230,9 +233,11 @@ function RadialOrbitalTimeline() {
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={16} /> </div>
                 <div className={`absolute top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}>{item.title}</div>
                 {isExpanded && (
-                  // 调整卡片位置以避免在手机端被遮挡
-                  <Card className="absolute -left-[calc(50%+100px)] bottom-20 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible
-                                   md:left-1/2 md:-translate-x-1/2"> {/* md: 尺寸以上恢复原位 */}
+                  // 调整卡片位置：
+                  // 手机端：bottom-auto top-1/2 -translate-y-1/2 left-4 right-4 width-auto 确保占据大部分宽度且在左侧不被遮挡
+                  // 平板/PC端：保持原始居中显示
+                  <Card className="absolute left-4 right-4 w-auto bottom-auto top-1/2 -translate-y-1/2 
+                                   md:bottom-20 md:left-1/2 md:-translate-x-1/2 md:w-64">
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center"><Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>{item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"}</Badge><span className="text-xs font-mono text-white/50">{item.date}</span></div>
@@ -376,37 +381,38 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       particlesRef.current = []; // 重置粒子数组
 
-      // 根据实际画布宽度和标题长度计算标题高度，确保文字不溢出且适应大小
-      // 这里的字体大小应根据 canvas 的实际像素宽度来计算，而不是固定值
-      // 10 只是一个经验系数，确保在不同分辨率下文字大小合理
       // 调整字体大小计算，确保在不同设备上标题可见且不失真
-      const baseFontSize = canvas.width / (titleBox.str.length * 0.8 + 5); // 动态计算基础字体大小
-      titleBox.h = Math.floor(Math.min(baseFontSize, canvas.height / 3)); // 限制标题高度不超过画布高度的1/3
+      // 动态计算基础字体大小，使其能适应画布宽度
+      let titleFontSize = Math.floor(canvas.width / (titleBox.str.length * 0.6 + 5)); // 调整系数以适应更宽的标题
+      // 限制标题高度不超过画布高度的1/3，并设置一个最小字体
+      titleBox.h = Math.floor(Math.min(titleFontSize, canvas.height / 3, 120)); // 增加最大字体限制，防止PC端过大
 
       ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center'; // 文本水平居中
+      ctx.textBaseline = 'middle'; // 文本垂直居中基于 middle
       titleBox.w = Math.round(ctx.measureText(titleBox.str).width);
-      // 居中计算
-      titleBox.x = (canvas.width - titleBox.w) / 2;
-      // 调整标题Y轴位置，使其在画布顶部偏中心
-      titleBox.y = (canvas.height / 2) - (titleBox.h * 0.3) - (canvas.height * 0.1); // 向上微调
+      
+      // 标题的Y轴位置：垂直居中偏上
+      titleBox.x = canvas.width / 2; // X轴保持居中
+      titleBox.y = canvas.height * 0.4; // 调整Y轴位置，使其居中偏上
 
       const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
       const N = colors.length - 1;
       colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
       ctx.fillStyle = gradient;
-      ctx.fillText(titleBox.str, canvas.width / 2, titleBox.y); // 使用调整后的Y坐标
+      ctx.fillText(titleBox.str, titleBox.x, titleBox.y); // 使用调整后的X, Y坐标绘制
       dottify(titleBox, particlesRef.current);
 
-      subtitleBox.h = Math.floor(titleBox.h * 0.3);
+      // 副标题字体大小
+      subtitleBox.h = Math.floor(titleBox.h * 0.3); // 副标题是主标题的30%
       ctx.font = `400 ${subtitleBox.h}px Verdana, sans-serif`;
       subtitleBox.w = Math.round(ctx.measureText(subtitleBox.str).width);
-      // 居中计算
-      subtitleBox.x = (canvas.width - subtitleBox.w) / 2;
-      // 调整副标题Y轴位置，使其在主标题下方
-      subtitleBox.y = titleBox.y + titleBox.h * 0.8 + (canvas.height * 0.05); // 在主标题下方微调
+      
+      // 副标题的Y轴位置：在主标题下方
+      subtitleBox.x = canvas.width / 2; // X轴保持居中
+      subtitleBox.y = titleBox.y + titleBox.h * 0.7; // 调整Y轴位置，在主标题下方
 
-      ctx.fillText(subtitleBox.str, canvas.width / 2, subtitleBox.y); // 使用调整后的Y坐标
+      ctx.fillText(subtitleBox.str, subtitleBox.x, subtitleBox.y); // 使用调整后的X, Y坐标绘制
       dottify(subtitleBox, particlesRef.current);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height); // 再次清除，只保留粒子
@@ -442,7 +448,8 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
     // 交互半径根据实际 CSS 宽度计算
     interactionRadiusRef.current = Math.max(50, (canvasWidth / 10) * 1.5);
 
-    writeAndDottify();
+    // 修复：在 useEffect 中调用 writeAndDottify 确保每次画布尺寸或内容变化时重新绘制
+    writeAndDottify(); 
     
     if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
     animate();
