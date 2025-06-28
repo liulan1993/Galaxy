@@ -1,7 +1,7 @@
 "use client";
 
 // ============================================================================
-// 0. 核心依赖导入 (无变动)
+// 0. 核心依赖导入
 // ============================================================================
 import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
@@ -16,39 +16,13 @@ import { twMerge } from "tailwind-merge";
 import { Slot } from "@radix-ui/react-slot";
 import { ArrowRight, Link, Zap, Calendar, Code, FileText, User, Clock } from "lucide-react";
 
-// ============================================================================
-// ★ 新增: 响应式工具 Hook (无变动)
-// ============================================================================
-const useWindowSize = () => {
-  const [windowSize, setWindowSize] = useState<{ width: number | undefined; height: number | undefined }>({
-    width: undefined,
-    height: undefined,
-  });
-
-  useEffect(() => {
-    function handleResize() {
-      setWindowSize({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    }
-    
-    window.addEventListener("resize", handleResize);
-    handleResize();
-    
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  return windowSize;
-};
-
 
 // ============================================================================
-// A. “旋转菜单栏” (RadialOrbitalTimeline) 组件 (无变动)
+// A. “旋转菜单栏” (RadialOrbitalTimeline) 组件 (来自您原始文件)
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// A.1. 工具函数与样式 (无变动)
+// A.1. 工具函数与样式
 // ----------------------------------------------------------------------------
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -81,7 +55,7 @@ const GlobalTimelineStyles = () => (
 );
 
 // ----------------------------------------------------------------------------
-// A.2. UI基础组件 (无变动)
+// A.2. UI基础组件
 // ----------------------------------------------------------------------------
 const badgeVariants = cva(
   "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
@@ -111,20 +85,20 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
 ));
 Card.displayName = "Card";
 const CardHeader = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("flex flex-col space-y-1.5 p-4 md:p-6", className)} {...props} />
+  <div ref={ref} className={cn("flex flex-col space-y-1.5 p-6", className)} {...props} />
 ));
 CardHeader.displayName = "CardHeader";
 const CardTitle = React.forwardRef<HTMLParagraphElement, React.HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => (
-  <h3 ref={ref} className={cn("text-lg md:text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
+  <h3 ref={ref} className={cn("text-2xl font-semibold leading-none tracking-tight", className)} {...props} />
 ));
 CardTitle.displayName = "CardTitle";
 const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-4 md:p-6 pt-0", className)} {...props} />
+  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
 ));
 CardContent.displayName = "CardContent";
 
 // ----------------------------------------------------------------------------
-// A.3. 主时间轴组件 (无变动)
+// A.3. 主时间轴组件
 // ----------------------------------------------------------------------------
 interface TimelineItem {
   id: number; title: string; date: string; content: string; category: string; icon: React.ComponentType<{ size?: number }>; relatedIds: number[]; status: "completed" | "in-progress" | "pending"; energy: number;
@@ -138,7 +112,6 @@ const timelineData: TimelineItem[] = [
 ];
 
 function RadialOrbitalTimeline() {
-  const { width } = useWindowSize(); 
   const [expandedItems, setExpandedItems] = useState<Record<number, boolean>>({});
   const [rotationAngle, setRotationAngle] = useState<number>(0);
   const [autoRotate, setAutoRotate] = useState<boolean>(true);
@@ -148,12 +121,6 @@ function RadialOrbitalTimeline() {
   const orbitRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  const isMobile = width !== undefined && width < 768;
-  const orbitRadius = useMemo(() => {
-    if (width === undefined) return 200; 
-    return Math.min(width * (isMobile ? 0.35 : 0.2), 250);
-  }, [width, isMobile]);
-  
   const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === containerRef.current || e.target === orbitRef.current) {
       setExpandedItems({}); setActiveNodeId(null); setPulseEffect({}); setAutoRotate(true);
@@ -193,10 +160,9 @@ function RadialOrbitalTimeline() {
   };
 
   const calculateNodePosition = (index: number, total: number) => {
-    const angle = ((index / total) * 360 + rotationAngle) % 360;
+    const angle = ((index / total) * 360 + rotationAngle) % 360; const radius = 90;
     const radian = (angle * Math.PI) / 180;
-    const x = orbitRadius * Math.cos(radian); 
-    const y = orbitRadius * Math.sin(radian);
+    const x = radius * Math.cos(radian); const y = radius * Math.sin(radian);
     const zIndex = Math.round(100 + 50 * Math.sin(radian));
     const opacity = Math.max(0.4, Math.min(1, 0.4 + 0.6 * ((1 + Math.sin(radian)) / 2)));
     return { x, y, zIndex, opacity };
@@ -221,11 +187,12 @@ function RadialOrbitalTimeline() {
   };
 
   return (
-    <div className="absolute inset-0 z-10 w-full h-full flex items-end justify-end md:items-center md:justify-center p-4 md:p-0 pointer-events-auto" ref={containerRef} onClick={handleContainerClick}>
+    <div className="relative z-10 w-full h-full flex flex-col items-center justify-center bg-transparent overflow-hidden pointer-events-auto" ref={containerRef} onClick={handleContainerClick}>
       <GlobalTimelineStyles />
-      <div className="relative w-[300px] h-[300px] md:w-[600px] md:h-[600px] flex items-center justify-center" ref={orbitRef} style={{ perspective: "1000px" }}>
-          <div className="absolute w-12 h-12 md:w-16 md:h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse" style={{ boxShadow: '0 0 35px 8px #ff6030, 0 0 60px 20px rgba(255, 165, 0, 0.5), 0 0 90px 45px rgba(255, 255, 255, 0.1)', animationDuration: '4s', }}>
-            <div className="w-4 h-4 md:w-5 md:h-5 rounded-full bg-white opacity-95 blur-sm"></div>
+      <div className="relative w-full max-w-4xl h-full flex items-center justify-center">
+        <div className="absolute w-full h-full flex items-center justify-center" ref={orbitRef} style={{ perspective: "1000px", transform: 'translateX(41vw) translateY(35vh)' }}>
+          <div className="absolute w-16 h-16 rounded-full bg-[#ff9830] z-10 flex items-center justify-center animate-pulse" style={{ boxShadow: '0 0 35px 8px #ff6030, 0 0 60px 20px rgba(255, 165, 0, 0.5), 0 0 90px 45px rgba(255, 255, 255, 0.1)', animationDuration: '4s', }}>
+            <div className="w-5 h-5 rounded-full bg-white opacity-95 blur-sm"></div>
           </div>
           {timelineData.map((item, index) => {
             const position = calculateNodePosition(index, timelineData.length);
@@ -234,10 +201,10 @@ function RadialOrbitalTimeline() {
             return (
               <div key={item.id} ref={(el) => { nodeRefs.current[item.id] = el; }} className="absolute transition-all duration-700 cursor-pointer" style={nodeStyle} onClick={(e) => { e.stopPropagation(); toggleItem(item.id); }}>
                 <div className={`absolute rounded-full -inset-1 ${isPulsing ? "animate-pulse duration-1000" : ""}`} style={{ background: `radial-gradient(circle, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0) 70%)`, width: `${item.energy * 0.5 + 40}px`, height: `${item.energy * 0.5 + 40}px`, left: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, top: `-${(item.energy * 0.5 + 40 - 40) / 2}px`, }} ></div>
-                <div className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-125 md:scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={isMobile ? 12 : 16} /> </div>
-                <div className={`absolute top-10 md:top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-110 md:scale-125" : "text-white/70"}`}>{item.title}</div>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 transform ${isExpanded ? "bg-white text-black border-white shadow-lg shadow-white/30 scale-150" : isRelated ? "bg-white/50 text-black border-white animate-pulse" : "bg-black text-white border-white/40"}`}> <Icon size={16} /> </div>
+                <div className={`absolute top-12 whitespace-nowrap text-xs font-semibold tracking-wider transition-all duration-300 ${isExpanded ? "text-white scale-125" : "text-white/70"}`}>{item.title}</div>
                 {isExpanded && (
-                  <Card className="absolute bottom-16 md:bottom-20 left-1/2 -translate-x-1/2 w-56 md:w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
+                  <Card className="absolute bottom-20 left-1/2 -translate-x-1/2 w-64 bg-black/90 backdrop-blur-lg border-white/30 shadow-xl shadow-white/10 overflow-visible">
                     <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-px h-3 bg-white/50"></div>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-center"><Badge variant="outline" className={`px-2 text-xs ${getStatusStyles(item.status)}`}>{item.status === "completed" ? "已完成" : item.status === "in-progress" ? "进行中" : "待定"}</Badge><span className="text-xs font-mono text-white/50">{item.date}</span></div>
@@ -267,19 +234,22 @@ function RadialOrbitalTimeline() {
             );
           })}
         </div>
+      </div>
     </div>
   );
 }
 
 
 // ============================================================================
-// B. “黑洞特效标题” (BlackHoleTitle) 组件 (★ 已最终修正)
+// B. 新增：“黑洞特效标题” (BlackHoleTitle) 组件
+// 这是根据 interactive-text-particle.tsx 和 demo.tsx 合并并增强后的组件。
 // ============================================================================
 
 // ----------------------------------------------------------------------------
 // B.1. 组件类型定义
 // ----------------------------------------------------------------------------
 interface Pointer { x?: number; y?: number; }
+// 修复点 1: 此处定义 ParticleClass, 而不是在组件内部
 class ParticleClass {
     ox: number; oy: number; cx: number; cy: number; or: number; cr: number; pv: number; ov: number; f: number; rgb: number[];
     constructor(x: number, y: number, animationForce: number, rgb: number[] = [(Math.random() * 128), (Math.random() * 128), (Math.random() * 128)]) {
@@ -340,86 +310,59 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   const hasPointerRef = useRef<boolean>(false);
   const interactionRadiusRef = useRef<number>(100);
 
-  const containerRef = useRef<HTMLDivElement>(null);
+  // 修复: 移除未使用的 setCanvasSize, 避免 lint 警告
+  const canvasSize = useMemo<{ width: number; height: number }>(() => ({ width: 800, height: 400 }), []);
 
   const titleBox = useMemo<TextBox>(() => ({ str: title }), [title]);
   const subtitleBox = useMemo<TextBox>(() => ({ str: subtitle }), [subtitle]);
-  
-  // ★ 修正: 优化了此函数以正确处理DPR
+
   const dottify = (box: TextBox, particleArr: ParticleClass[]) => {
-    const ctx = ctxRef.current;
-    const canvas = canvasRef.current;
-    if (!ctx || !canvas || box.x === undefined || box.y === undefined || box.w === undefined || box.h === undefined) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const imageData = ctx.getImageData(box.x * dpr, box.y * dpr, box.w * dpr, box.h * dpr).data;
-    
-    const pixels = [];
-    const physicalWidth = box.w * dpr;
-    const adjustedParticleDensity = Math.max(1, Math.floor(particleDensity * (dpr / 1.5)));
-
-    for (let i = 0; i < imageData.length; i += 4) {
-        if (imageData[i + 3] > 0) {
-            const physicalX = (i / 4) % physicalWidth;
-            const physicalY = Math.floor((i / 4) / physicalWidth);
-
-            if (physicalX % adjustedParticleDensity === 0 && physicalY % adjustedParticleDensity === 0) {
-                const logicalX = box.x + physicalX / dpr;
-                const logicalY = box.y + physicalY / dpr;
-                pixels.push({ x: logicalX, y: logicalY, rgb: [imageData[i], imageData[i + 1], imageData[i + 2]] });
-            }
-        }
-    }
-    pixels.forEach(p => { particleArr.push(new ParticleClass(p.x, p.y, animationForce, p.rgb)); });
+      const ctx = ctxRef.current; const canvas = canvasRef.current;
+      if (!ctx || !canvas || box.x === undefined || box.y === undefined || box.w === undefined || box.h === undefined) return;
+      const data = ctx.getImageData(box.x, box.y, box.w, box.h).data;
+      const pixels = [];
+      for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] > 0) {
+              const x = (i / 4) % box.w;
+              const y = Math.floor((i / 4) / box.w);
+              if (x % particleDensity === 0 && y % particleDensity === 0) {
+                  pixels.push({ x: box.x + x, y: box.y + y, rgb: [data[i], data[i+1], data[i+2]] });
+              }
+          }
+      }
+      pixels.forEach(p => { particleArr.push(new ParticleClass(p.x, p.y, animationForce, p.rgb)); });
   };
   
-  // ★ 修正: 优化了此函数以正确处理DPR
   const writeAndDottify = () => {
-    const canvas = canvasRef.current;
-    const ctx = ctxRef.current;
-    if (!canvas || !ctx) return;
-    
-    const dpr = window.devicePixelRatio || 1;
-    const logicalWidth = canvas.width / dpr;
-    const logicalHeight = canvas.height / dpr;
+      const canvas = canvasRef.current; const ctx = ctxRef.current;
+      if (!canvas || !ctx) return;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particlesRef.current = [];
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    particlesRef.current = [];
+      titleBox.h = Math.floor(canvas.width / (titleBox.str.length > 0 ? Math.min(titleBox.str.length, 10) : 10));
+      ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      titleBox.w = Math.round(ctx.measureText(titleBox.str).width);
+      titleBox.x = Math.max(0, 0.5 * (canvas.width - titleBox.w));
+      titleBox.y = 0.5 * (canvas.height - titleBox.h) - titleBox.h * 0.3;
 
-    const gradient = ctx.createLinearGradient(0, 0, logicalWidth, logicalHeight);
-    const N = colors.length - 1;
-    colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
-    ctx.fillStyle = gradient;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
+      const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      const N = colors.length - 1;
+      colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
+      ctx.fillStyle = gradient;
+      ctx.fillText(titleBox.str, 0.5 * canvas.width, 0.5 * canvas.height - titleBox.h * 0.3);
+      dottify(titleBox, particlesRef.current);
 
-    const titleFontSize = Math.min(logicalWidth / 8, 100);
-    ctx.font = `900 ${titleFontSize}px Verdana, sans-serif`;
-    const titleMetrics = ctx.measureText(titleBox.str);
-    const titleX = logicalWidth / 2;
-    const titleY = logicalHeight / 2 - titleFontSize * 0.2;
-    ctx.fillText(titleBox.str, titleX, titleY);
-    
-    titleBox.w = titleMetrics.width;
-    titleBox.h = titleMetrics.actualBoundingBoxAscent + titleMetrics.actualBoundingBoxDescent;
-    titleBox.x = titleX - titleBox.w / 2;
-    titleBox.y = titleY - titleBox.h / 2;
-    dottify(titleBox, particlesRef.current);
-    
-    const subtitleFontSize = Math.floor(titleFontSize * 0.3);
-    ctx.font = `400 ${subtitleFontSize}px Verdana, sans-serif`;
-    const subMetrics = ctx.measureText(subtitleBox.str);
-    const subtitleX = logicalWidth / 2;
-    const subtitleY = logicalHeight / 2 + subtitleFontSize * 1.5;
-    ctx.fillText(subtitleBox.str, subtitleX, subtitleY);
+      subtitleBox.h = Math.floor(titleBox.h * 0.3);
+      ctx.font = `400 ${subtitleBox.h}px Verdana, sans-serif`;
+      subtitleBox.w = Math.round(ctx.measureText(subtitleBox.str).width);
+      subtitleBox.x = Math.max(0, 0.5 * (canvas.width - subtitleBox.w));
+      subtitleBox.y = 0.5 * canvas.height + subtitleBox.h * 0.8;
+      ctx.fillText(subtitleBox.str, 0.5 * canvas.width, 0.5 * canvas.height + subtitleBox.h * 0.8);
+      dottify(subtitleBox, particlesRef.current);
 
-    subtitleBox.w = subMetrics.width;
-    subtitleBox.h = subMetrics.actualBoundingBoxAscent + subMetrics.actualBoundingBoxDescent;
-    subtitleBox.x = subtitleX - subtitleBox.w / 2;
-    subtitleBox.y = subtitleY - subtitleBox.h / 2;
-    dottify(subtitleBox, particlesRef.current);
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
   const animate = () => {
@@ -434,70 +377,48 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   };
   
   useEffect(() => {
-    const canvas = canvasRef.current; 
-    const container = containerRef.current;
-    if (!canvas || !container) return;
+    const canvas = canvasRef.current; if (!canvas) return;
+    ctxRef.current = canvas.getContext('2d');
     
-    ctxRef.current = canvas.getContext('2d', { willReadFrequently: true });
-    
-    const setCanvasDimensions = () => {
-        const rect = container.getBoundingClientRect();
-        // ★ 修正: dpr 变量在这里定义和使用
-        const dpr = window.devicePixelRatio || 1;
-        
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        canvas.style.width = `${rect.width}px`;
-        canvas.style.height = `${rect.height}px`;
-
-        ctxRef.current?.scale(dpr, dpr);
-
-        interactionRadiusRef.current = Math.max(50, (rect.width / 10) * 1.5);
-        writeAndDottify();
-    };
-
-    setCanvasDimensions(); 
-    
-    const resizeObserver = new ResizeObserver(setCanvasDimensions);
-    resizeObserver.observe(container);
+    canvas.width = canvasSize.width;
+    canvas.height = canvasSize.height;
+    interactionRadiusRef.current = Math.max(50, (canvas.width / 10) * 1.5);
+    writeAndDottify();
     
     if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
     animate();
 
-    return () => { 
-        if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); 
-        resizeObserver.disconnect();
-    };
-  }, [title, subtitle, colors, animationForce, particleDensity]);
+    return () => { if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); };
+  }, [title, subtitle, colors, animationForce, particleDensity, canvasSize]);
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current; if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    // ★ 修正: 此处不再需要 dpr 变量
-    pointerRef.current.x = (e.clientX - rect.left);
-    pointerRef.current.y = (e.clientY - rect.top);
+    const scaleX = canvas.width / rect.width; const scaleY = canvas.height / rect.height;
+    pointerRef.current.x = (e.clientX - rect.left) * scaleX;
+    pointerRef.current.y = (e.clientY - rect.top) * scaleY;
     if (!hasPointerRef.current) { hasPointerRef.current = true; }
   };
   const handlePointerLeave = () => { hasPointerRef.current = false; };
 
   return (
-    <div ref={containerRef} className={`w-full h-full max-w-[800px] max-h-[400px] ${className} pointer-events-auto`}>
-        <canvas
-            ref={canvasRef}
-            onPointerMove={handlePointerMove}
-            onPointerLeave={handlePointerLeave}
-        />
-    </div>
+    <canvas
+      ref={canvasRef}
+      className={`max-w-full max-h-full ${className} pointer-events-auto`}
+      style={{width: `${canvasSize.width}px`, height: `${canvasSize.height}px`}}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={handlePointerLeave}
+    />
   );
 };
 
 
 // ============================================================================
-// C. “开场动画”与“主场景”组件 (无变动)
+// C. 您原始的 page.tsx 组件 (已修改)
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// C.1. 类型定义 (无变动)
+// C.1. 类型定义 (原始)
 // ----------------------------------------------------------------------------
 interface StarfieldProps { speed?: number; particleCount?: number; warpSpeedActive?: boolean; accelerationDuration?: number; maxSpeed?: number; insideColor: string; outsideColor: string; }
 interface GalaxyParams { count: number; size: number; radius: number; branches: number; spin: number; randomness: number; randomnessPower: number; insideColor: string; outsideColor: string; }
@@ -505,7 +426,7 @@ interface GalaxyProps { params: GalaxyParams; }
 interface SceneProps { galaxyParams: GalaxyParams; }
 
 // ----------------------------------------------------------------------------
-// C.2. 开场动画核心组件 (无变动)
+// C.2. 开场动画核心组件 (原始)
 // ----------------------------------------------------------------------------
 const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, warpSpeedActive = false, accelerationDuration = 2, maxSpeed = 50, insideColor, outsideColor }) => {
   const ref = useRef<THREE.Points>(null!); const warpStartTime = useRef(0);
@@ -560,7 +481,7 @@ const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, 
   );
 };
 const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?: string; onClick?: () => void; }) => (
-    <svg width="100%" height="100%" viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
+    <svg width="100%" height="100%" viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg" className="select-none cursor-pointer" onClick={onClick}>
         <defs>
             <linearGradient id="textGradient"><stop offset="0%" stopColor="#ff6030" /><stop offset="50%" stopColor="#ffffff" /><stop offset="100%" stopColor="#1b3984" /></linearGradient>
             <motion.radialGradient id="revealMask" gradientUnits="userSpaceOnUse" r="25%" animate={{ cx: ["-25%", "125%"] }} transition={{ duration: 4, ease: "linear", repeat: Infinity, repeatType: "reverse" }}>
@@ -569,9 +490,9 @@ const TextShineEffect = ({ text, subtitle, onClick }: { text: string; subtitle?:
             </motion.radialGradient>
             <mask id="textMask"><rect x="0" y="0" width="100%" height="100%" fill="url(#revealMask)" /></mask>
         </defs>
-        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold">{text}</text>
-        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl lg:text-9xl font-bold">{text}</text>
-        {subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold">{subtitle}</text></>)}
+        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
+        <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-6xl sm:text-7xl md:text-8xl font-bold">{text}</text>
+        {subtitle && (<><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="white" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text><text x="50%" y="70%" textAnchor="middle" dominantBaseline="middle" fill="url(#textGradient)" mask="url(#textMask)" className="font-[Helvetica] text-xl sm:text-2xl md:text-3xl font-semibold">{subtitle}</text></>)}
     </svg>
 );
 const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: { insideColor: string; outsideColor: string; } }> = ({ onAnimationFinish, galaxyColors }) => {
@@ -588,10 +509,10 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
         {isAnimationVisible && (
             <motion.div key="animation-wrapper" className="fixed inset-0 z-[100] bg-black" exit={{ opacity: 0, transition: { duration: 1.0, delay: 0.5 } }}>
                 <motion.div className="absolute inset-0 flex items-center justify-center z-10" animate={{ opacity: animationState === 'initial' || animationState === 'textFading' ? 1 : 0, scale: animationState === 'textFading' ? 0.8 : 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}>
-                    <div className="w-full max-w-4xl px-4"><TextShineEffect text="Galaxy" subtitle="轻触，开启非凡" onClick={handleEnter} /></div>
+                    <div className="w-full max-w-2xl px-4"><TextShineEffect text="Galaxy" subtitle="轻触，开启非凡" onClick={handleEnter} /></div>
                 </motion.div>
                 <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0 }} transition={{ duration: 2.0, ease: "easeIn" }}>
-                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }} dpr={[1, 2]}>
+                    <Canvas camera={{ position: [0, 0, 5], fov: 75 }}>
                         <Starfield warpSpeedActive={animationState === 'warping'} insideColor={galaxyColors.insideColor} outsideColor={galaxyColors.outsideColor} />
                         <EffectComposer><Bloom luminanceThreshold={animationState === 'warping' ? 0.0 : 0.1} luminanceSmoothing={0.8} height={300} intensity={animationState === 'warping' ? 30.0 : 0.5} /></EffectComposer>
                     </Canvas>
@@ -603,7 +524,7 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
 }
 
 // ----------------------------------------------------------------------------
-// C.3. 主场景组件 (无变动)
+// C.3. 主场景组件 (原始)
 // ----------------------------------------------------------------------------
 const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     const pointsRef = useRef<THREE.Points>(null!);
@@ -675,7 +596,7 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     };
     return (
         <div className="absolute inset-0 w-full h-full z-0 pointer-events-none">
-            <Canvas camera={{ position: [0, 2, 15], fov: 60 }} dpr={[1, 2]}>
+            <Canvas camera={{ position: [0, 2, 15], fov: 60 }}>
                 <Galaxy params={galaxyParams} />
                 <CometsController triggerPulse={triggerPulse} />
                 <OrbitControls enableZoom={false} enablePan={false} enableRotate={false} autoRotate={true} autoRotateSpeed={0.2} />
@@ -686,28 +607,15 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
 };
 
 // ----------------------------------------------------------------------------
-// D. 主页面和状态控制器 (无变动)
+// C.4. 主页面和状态控制器 (已集成新组件)
 // ----------------------------------------------------------------------------
 export default function Page() {
-    const { width } = useWindowSize(); 
     const [isClient, setIsClient] = useState(false);
     const [mainContentVisible, setMainContentVisible] = useState(false);
-    
-    const isMobile = width !== undefined && width < 768;
     const galaxyParams: GalaxyParams = useMemo(() => ({
-        count: isMobile ? 50000 : 200000, 
-        size: isMobile ? 0.01 : 0.015,
-        radius: 10,
-        branches: 5,
-        spin: 1.5,
-        randomness: 0.5,
-        randomnessPower: 3,
-        insideColor: '#ff6030',
-        outsideColor: '#1b3984'
-    }), [isMobile]);
-    
-    const particleDensity = isMobile ? 5 : 3;
-
+        count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5,
+        randomnessPower: 3, insideColor: '#ff6030', outsideColor: '#1b3984'
+    }), []);
     useEffect(() => {
         setIsClient(true);
         if (sessionStorage.getItem('hasVisitedHomePage')) { setMainContentVisible(true); }
@@ -735,16 +643,29 @@ export default function Page() {
                         {/* 静态银河背景 (z-0) */}
                         <Scene galaxyParams={galaxyParams} />
                         
-                        {/* 黑洞特效标题 (z-20) */}
+                        {/* * =================================================================
+                          * 新增点: 集成 “黑洞特效标题” 组件
+                          * =================================================================
+                          * - 使用一个 div 将其包裹，并通过 flex 布局实现居中。
+                          * - z-index 设置为 20，确保它在银河背景 (z-0) 之上。
+                          * - 父 div 设置 pointer-events-none 以允许事件穿透到下面的菜单栏。
+                          * - BlackHoleTitle 组件的 canvas 本身有 pointer-events-auto，
+                          * 可以响应鼠标悬停交互。
+                          */
+                        }
                         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
                             <BlackHoleTitle
                                 title="GALAXY"
                                 subtitle="星河遇见你"
-                                particleDensity={particleDensity}
                             />
                         </div>
 
-                        {/* 旋转菜单栏 (z-10) */}
+                        {/* * =================================================================
+                          * 您原有的 “旋转菜单栏” 组件 (z-10)
+                          * =================================================================
+                          * - 保持不变，位于右下角并可交互。
+                          */
+                        }
                         <RadialOrbitalTimeline />
 
                     </motion.div>
