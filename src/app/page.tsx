@@ -505,7 +505,7 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
             <motion.div key="animation-wrapper" className="fixed inset-0 z-[100] bg-black" exit={{ opacity: 0, transition: { duration: 1.0, delay: 0.5 } }}>
                 <motion.div className="absolute inset-0 flex items-center justify-center z-10" animate={{ opacity: animationState === 'initial' || animationState === 'textFading' ? 1 : 0, scale: animationState === 'textFading' ? 0.8 : 1 }} transition={{ duration: 1.5, ease: "easeInOut" }}>
                     <div className="w-full max-w-2xl px-4">
-                        <TextShineEffect text="Apex" subtitle="轻触，开启非凡" onClick={handleEnter} />
+                        <TextShineEffect text="Galaxy" subtitle="轻触，开启非凡" onClick={handleEnter} />
                     </div>
                 </motion.div>
                 <motion.div className="absolute inset-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: animationState === 'warping' || animationState === 'textFading' ? 1 : 0 }} transition={{ duration: 2.0, ease: "easeIn" }}>
