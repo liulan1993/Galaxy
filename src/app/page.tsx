@@ -231,7 +231,6 @@ function RadialOrbitalTimeline() {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    // [BUG修复] 增加了半径大小，使轨道菜单具有更合适的可视范围。原始值90px过小。
     const radius = 280;
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian);
@@ -272,7 +271,6 @@ function RadialOrbitalTimeline() {
         <div
           className="absolute w-full h-full flex items-center justify-center"
           ref={orbitRef}
-          // [BUG修复] 移除了不正确的硬编码 transform 样式，此样式会导致菜单被推到屏幕外，从而导致页面看起来是空白的。
           style={{
             perspective: "1000px",
           }}
@@ -372,27 +370,20 @@ function RadialOrbitalTimeline() {
 interface StarfieldProps {
   speed?: number; particleCount?: number; warpSpeedActive?: boolean; accelerationDuration?: number; maxSpeed?: number; insideColor: string; outsideColor: string;
 }
-// [修改] 为星系参数添加了新的 shape 和 rotationX 属性
 interface GalaxyParams {
   count: number; size: number; radius: number; branches: number; spin: number; randomness: number; randomnessPower: number; insideColor: string; outsideColor: string;
-  shape: 'spiral' | 'disk'; // 'spiral' 是经典旋臂，'disk' 是吸积盘
-  rotationX?: number; // 用于控制特定视角的旋转
-  bloomIntensity: number; // 为每个星系定制辉光强度
+  shape: 'spiral' | 'disk'; 
+  rotationX?: number; 
+  bloomIntensity: number; 
 }
 interface GalaxyProps { params: GalaxyParams; }
 interface SceneProps { galaxyParams: GalaxyParams; }
 
-// [新增] 5种星系形态的预设参数
 const galaxyPresets: GalaxyParams[] = [
-  // 预设 0: 炽热旋涡 (灵感源自 fbb9f88b5d2e85443e1463cbedc4c9df.jpg)
   { count: 200000, size: 0.015, radius: 10, branches: 5, spin: 1.5, randomness: 0.5, randomnessPower: 3, insideColor: '#add8e6', outsideColor: '#ff8c00', shape: 'spiral', bloomIntensity: 1.5, rotationX: -0.4 },
-  // 预设 1: 蓝色吧台 (灵感源自 f394cddabfa1495e66d162d99086eb99.jpg)
   { count: 250000, size: 0.012, radius: 12, branches: 2, spin: 0.5, randomness: 0.8, randomnessPower: 2.5, insideColor: '#ffd700', outsideColor: '#4169e1', shape: 'spiral', bloomIntensity: 1.8, rotationX: -0.4 },
-  // 预设 2: 类银河系 (灵感源自 9bcb415805af9c0eb5350eb231da7353.png)
   { count: 300000, size: 0.01, radius: 11, branches: 4, spin: 1.0, randomness: 0.4, randomnessPower: 2.5, insideColor: '#FFFFFF', outsideColor: '#6495ED', shape: 'spiral', bloomIntensity: 1.2, rotationX: -0.4 },
-  // 预设 3: 黑洞吸积盘 (灵感源自 1cf4a1e8101bfcf96f7fc9fc0a88c4de.jpg)
   { count: 150000, size: 0.02, radius: 6, branches: 1, spin: 0, randomness: 1.0, randomnessPower: 1, insideColor: '#FFFFFF', outsideColor: '#FFA500', shape: 'disk', bloomIntensity: 2.5, rotationX: -0.6 },
-  // 预设 4: 创生之柱 (灵感源自 a6e7f676436d8228e899372b179f6b2a.jpg) - 侧视星系
   { count: 200000, size: 0.018, radius: 12, branches: 2, spin: 0.2, randomness: 1.5, randomnessPower: 2, insideColor: '#add8e6', outsideColor: '#ff4500', shape: 'spiral', bloomIntensity: 2.0, rotationX: -Math.PI / 2 + 0.15 },
 ];
 
@@ -530,11 +521,6 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
 // B.3. 主场景组件 (已修改)
 // ----------------------------------------------------------------------------
 
-/**
- * [新增] 这是一个独立的辅助函数，用于根据给定的参数生成星系粒子数据。
- * @param params 星系参数
- * @returns [positions, colors] 包含位置和颜色信息的数组
- */
 const generateGalaxy = (params: GalaxyParams): [Float32Array, Float32Array] => {
     const positions = new Float32Array(params.count * 3);
     const colors = new Float32Array(params.count * 3);
@@ -547,13 +533,11 @@ const generateGalaxy = (params: GalaxyParams): [Float32Array, Float32Array] => {
         let x, y, z;
 
         if (params.shape === 'disk') {
-            // 为“吸积盘”形状生成粒子
             const angle = Math.random() * Math.PI * 2;
             x = Math.cos(angle) * radius;
             z = Math.sin(angle) * radius;
-            y = (Math.random() - 0.5) * 0.2 * (radius / params.radius); // 盘面有轻微厚度
+            y = (Math.random() - 0.5) * 0.2 * (radius / params.radius);
         } else {
-            // 为经典的“旋臂”形状生成粒子
             const spinAngle = radius * params.spin;
             const branchAngle = (i % params.branches) / params.branches * Math.PI * 2;
             const randomX = Math.pow(Math.random(), params.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * params.randomness * radius;
@@ -577,12 +561,9 @@ const generateGalaxy = (params: GalaxyParams): [Float32Array, Float32Array] => {
 };
 
 
-/**
- * [重大修改] Galaxy 组件现在可以处理形态之间的平滑过渡动画
- */
 const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     const pointsRef = useRef<THREE.Points>(null!);
-    const transitionRef = useRef({ inProgress: false, startTime: 0, duration: 8000 }); // 8秒过渡时间
+    const transitionRef = useRef({ inProgress: false, startTime: 0, duration: 8000 });
 
     const bufferDataRef = useRef<{
         positions: Float32Array | null,
@@ -591,9 +572,7 @@ const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
         targetColors: Float32Array | null
     }>({ positions: null, colors: null, targetPositions: null, targetColors: null });
 
-    // 此 effect 会在 params 改变时触发，启动过渡动画
     useEffect(() => {
-        // 如果是首次渲染，直接生成并应用初始粒子数据
         if (!bufferDataRef.current.positions) {
             const [positions, colors] = generateGalaxy(params);
             bufferDataRef.current.positions = positions;
@@ -605,7 +584,6 @@ const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
             return;
         }
 
-        // 如果 params 变化，生成新的目标数据，并启动过渡动画
         const [targetPositions, targetColors] = generateGalaxy(params);
         bufferDataRef.current.targetPositions = targetPositions;
         bufferDataRef.current.targetColors = targetColors;
@@ -615,50 +593,41 @@ const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     }, [params]);
 
     useFrame((_, delta) => {
-        // 标准自转
         if (pointsRef.current) {
             pointsRef.current.rotation.y += delta * 0.05;
         }
 
-        // 过渡动画逻辑
         const { inProgress, startTime, duration } = transitionRef.current;
         const { positions, colors, targetPositions, targetColors } = bufferDataRef.current;
 
         if (inProgress && positions && colors && targetPositions && targetColors) {
             const elapsedTime = Date.now() - startTime;
             const progress = Math.min(elapsedTime / duration, 1.0);
-            const easedProgress = 0.5 - 0.5 * Math.cos(progress * Math.PI); // Ease In-Out 缓动函数
+            const easedProgress = 0.5 - 0.5 * Math.cos(progress * Math.PI);
 
-            // 逐点计算插值
             for (let i = 0; i < params.count; i++) {
                 const i3 = i * 3;
-                // 位置插值
                 positions[i3] = THREE.MathUtils.lerp(positions[i3], targetPositions[i3], easedProgress);
                 positions[i3 + 1] = THREE.MathUtils.lerp(positions[i3 + 1], targetPositions[i3 + 1], easedProgress);
                 positions[i3 + 2] = THREE.MathUtils.lerp(positions[i3 + 2], targetPositions[i3 + 2], easedProgress);
-                // 颜色插值
                 colors[i3] = THREE.MathUtils.lerp(colors[i3], targetColors[i3], easedProgress);
                 colors[i3 + 1] = THREE.MathUtils.lerp(colors[i3 + 1], targetColors[i3 + 1], easedProgress);
                 colors[i3 + 2] = THREE.MathUtils.lerp(colors[i3 + 2], targetColors[i3 + 2], easedProgress);
             }
 
-            // 标记 buffer attribute 需要更新
             if (pointsRef.current) {
                 pointsRef.current.geometry.attributes.position.needsUpdate = true;
                 pointsRef.current.geometry.attributes.color.needsUpdate = true;
             }
 
-            // 动画结束
             if (progress >= 1.0) {
                 transitionRef.current.inProgress = false;
-                // 为防止浮点数误差，直接设置为目标值
                 bufferDataRef.current.positions?.set(targetPositions);
                 bufferDataRef.current.colors?.set(targetColors);
             }
         }
     });
     
-    // 初始渲染时，我们提供一个空的 buffer geometry，它将在 useEffect 中被填充
     return (
         <points ref={pointsRef} rotation-x={params.rotationX ?? -0.4} position-y={-2}>
             <bufferGeometry />
@@ -692,7 +661,6 @@ const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: T
     return null;
 };
 
-// [修改] CometsController 现在会根据星系半径动态调整流星的生成范围
 const CometsController: React.FC<{ triggerPulse: () => void, galaxyRadius: number }> = ({ triggerPulse, galaxyRadius }) => {
     const [comets, setComets] = useState<Omit<React.ComponentProps<typeof Comet>, 'onImpact' | 'onFaded' | 'key'>[]>([]);
     const handleFaded = (cometId: string) => setComets(prev => prev.filter(c => c.id !== cometId));
@@ -703,7 +671,6 @@ const CometsController: React.FC<{ triggerPulse: () => void, galaxyRadius: numbe
             for (let i = 0; i < 8; i++) {
                 const delay = Math.random() * 15000;
                 timeouts.push(setTimeout(() => {
-                    // [修改] 流星的起始距离与星系半径关联
                     const spherical = new THREE.Spherical(galaxyRadius * 2 + Math.random() * 15, Math.random() * Math.PI, Math.random() * Math.PI * 2);
                     const startPosition = new THREE.Vector3().setFromSpherical(spherical);
                     const midPoint = startPosition.clone().multiplyScalar(0.5);
@@ -717,16 +684,14 @@ const CometsController: React.FC<{ triggerPulse: () => void, galaxyRadius: numbe
         };
         scheduleComets(); const intervalId = setInterval(scheduleComets, 15000);
         return () => { clearInterval(intervalId); timeouts.forEach(clearTimeout); };
-    }, [galaxyRadius]); // [修改] 依赖项增加了 galaxyRadius
+    }, [galaxyRadius]);
 
     return <>{comets.map(comet => <Comet key={comet.id} {...comet} onImpact={triggerPulse} onFaded={handleFaded}/>)}</>;
 };
 
-// [修改] Scene 组件现在可以动态调整辉光强度
 const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
     const bloomRef = useRef<{ intensity: number }>(null!);
     
-    // 使用 useFrame 平滑地过渡辉光强度
     useFrame((_, delta) => {
         if(bloomRef.current) {
             const currentIntensity = bloomRef.current.intensity;
@@ -737,10 +702,8 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
 
     const triggerPulse = () => {
         if (bloomRef.current) { 
-            // 脉冲强度在当前目标强度的基础上增加
             bloomRef.current.intensity = galaxyParams.bloomIntensity + 3.0;
         }
-        // 脉冲结束后会通过 useFrame 自动平滑恢复到 targetIntensity
     };
     
     return (
@@ -764,18 +727,15 @@ export default function Page() {
     const [isClient, setIsClient] = useState(false);
     const [mainContentVisible, setMainContentVisible] = useState(false);
     
-    // [新增] 使用 state 来管理当前星系的预设索引
     const [presetIndex, setPresetIndex] = useState(0);
 
-    // [新增] 每隔1分钟（60000毫秒）自动切换到下一个星系预设
     useEffect(() => {
         const intervalId = setInterval(() => {
             setPresetIndex(current => (current + 1) % galaxyPresets.length);
-        }, 60000); // 60秒
+        }, 60000);
         return () => clearInterval(intervalId);
     }, []);
 
-    // [修改] 当前的星系参数现在由 presetIndex 动态决定
     const galaxyParams = galaxyPresets[presetIndex];
 
     useEffect(() => {
@@ -786,12 +746,15 @@ export default function Page() {
     }, []);
 
     const handleAnimationFinish = () => {
+        // [BUG修复] 增加延时以确保开场动画的退场动效（持续1.5秒）完全结束后，
+        // 再挂载和渲染主内容组件。此前的500ms延时过短，导致新旧组件
+        // 在动画过渡期间同时存在于渲染树中，这极易引发WebGL上下文的初始化冲突和
+        // 不可预知的客户端异常，从而导致页面崩溃。
         setTimeout(() => {
             setMainContentVisible(true);
-        }, 500);
+        }, 1600); // 动效1.5秒 + 100毫秒缓冲
     };
     
-    // [修改] 开场动画的颜色使用第一个预设的颜色
     const openingGalaxyColors = {
         insideColor: galaxyPresets[0].insideColor,
         outsideColor: galaxyPresets[0].outsideColor
@@ -815,10 +778,8 @@ export default function Page() {
                         animate={{ opacity: 1 }}
                         transition={{ duration: 1.5, ease: "easeInOut" }}
                     >
-                        {/* [修改] Scene 现在接收动态的 galaxyParams */}
                         <Scene galaxyParams={galaxyParams} />
                         
-                        {/* 您的旋转菜单栏组件保持不变 */}
                         <RadialOrbitalTimeline />
 
                     </motion.div>
