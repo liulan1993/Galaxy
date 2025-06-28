@@ -17,10 +17,9 @@ import { Slot } from "@radix-ui/react-slot";
 import { ArrowRight, Link, Zap, Calendar, Code, FileText, User, Clock } from "lucide-react";
 
 // ============================================================================
-// ★ 新增: 响应式工具 Hook (已修正)
+// ★ 新增: 响应式工具 Hook (无变动)
 // ============================================================================
 const useWindowSize = () => {
-  // ★ 修正: 允许 width 和 height 在初始时为 undefined
   const [windowSize, setWindowSize] = useState<{ width: number | undefined; height: number | undefined }>({
     width: undefined,
     height: undefined,
@@ -45,7 +44,7 @@ const useWindowSize = () => {
 
 
 // ============================================================================
-// A. “旋转菜单栏” (RadialOrbitalTimeline) 组件 (已优化)
+// A. “旋转菜单栏” (RadialOrbitalTimeline) 组件 (无变动)
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -125,7 +124,7 @@ const CardContent = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDi
 CardContent.displayName = "CardContent";
 
 // ----------------------------------------------------------------------------
-// A.3. 主时间轴组件 (已优化)
+// A.3. 主时间轴组件 (无变动)
 // ----------------------------------------------------------------------------
 interface TimelineItem {
   id: number; title: string; date: string; content: string; category: string; icon: React.ComponentType<{ size?: number }>; relatedIds: number[]; status: "completed" | "in-progress" | "pending"; energy: number;
@@ -149,10 +148,9 @@ function RadialOrbitalTimeline() {
   const orbitRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
-  // ★ 修正: 在使用 width 之前，先检查它是否存在
   const isMobile = width !== undefined && width < 768;
   const orbitRadius = useMemo(() => {
-    if (width === undefined) return 200; // 提供一个默认值
+    if (width === undefined) return 200; 
     return Math.min(width * (isMobile ? 0.35 : 0.2), 250);
   }, [width, isMobile]);
   
@@ -275,7 +273,7 @@ function RadialOrbitalTimeline() {
 
 
 // ============================================================================
-// B. “黑洞特效标题” (BlackHoleTitle) 组件 (已优化)
+// B. “黑洞特效标题” (BlackHoleTitle) 组件 (★ 已最终修正)
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -347,57 +345,81 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   const titleBox = useMemo<TextBox>(() => ({ str: title }), [title]);
   const subtitleBox = useMemo<TextBox>(() => ({ str: subtitle }), [subtitle]);
   
+  // ★ 修正: 优化了此函数以正确处理DPR
   const dottify = (box: TextBox, particleArr: ParticleClass[]) => {
-      const ctx = ctxRef.current; const canvas = canvasRef.current;
-      if (!ctx || !canvas || box.x === undefined || box.y === undefined || box.w === undefined || box.h === undefined) return;
-      const data = ctx.getImageData(box.x, box.y, box.w, box.h).data;
-      const pixels = [];
-      for (let i = 0; i < data.length; i += 4) {
-          if (data[i + 3] > 0) {
-              const x = (i / 4) % box.w;
-              const y = Math.floor((i / 4) / box.w);
-              if (x % particleDensity === 0 && y % particleDensity === 0) {
-                  pixels.push({ x: box.x + x, y: box.y + y, rgb: [data[i], data[i+1], data[i+2]] });
-              }
-          }
-      }
-      pixels.forEach(p => { particleArr.push(new ParticleClass(p.x, p.y, animationForce, p.rgb)); });
+    const ctx = ctxRef.current;
+    const canvas = canvasRef.current;
+    if (!ctx || !canvas || box.x === undefined || box.y === undefined || box.w === undefined || box.h === undefined) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const imageData = ctx.getImageData(box.x * dpr, box.y * dpr, box.w * dpr, box.h * dpr).data;
+    
+    const pixels = [];
+    const physicalWidth = box.w * dpr;
+    const adjustedParticleDensity = Math.max(1, Math.floor(particleDensity * (dpr / 1.5)));
+
+    for (let i = 0; i < imageData.length; i += 4) {
+        if (imageData[i + 3] > 0) {
+            const physicalX = (i / 4) % physicalWidth;
+            const physicalY = Math.floor((i / 4) / physicalWidth);
+
+            if (physicalX % adjustedParticleDensity === 0 && physicalY % adjustedParticleDensity === 0) {
+                const logicalX = box.x + physicalX / dpr;
+                const logicalY = box.y + physicalY / dpr;
+                pixels.push({ x: logicalX, y: logicalY, rgb: [imageData[i], imageData[i + 1], imageData[i + 2]] });
+            }
+        }
+    }
+    pixels.forEach(p => { particleArr.push(new ParticleClass(p.x, p.y, animationForce, p.rgb)); });
   };
   
+  // ★ 修正: 优化了此函数以正确处理DPR
   const writeAndDottify = () => {
-      const canvas = canvasRef.current; const ctx = ctxRef.current;
-      if (!canvas || !ctx) return;
-      
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particlesRef.current = [];
+    const canvas = canvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+    
+    const dpr = window.devicePixelRatio || 1;
+    const logicalWidth = canvas.width / dpr;
+    const logicalHeight = canvas.height / dpr;
 
-      const baseFontSize = Math.min(canvas.width / (window.devicePixelRatio || 1) / 10, 100);
-      
-      titleBox.h = baseFontSize;
-      ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      const textMetrics = ctx.measureText(titleBox.str);
-      titleBox.w = textMetrics.width;
-      titleBox.x = (canvas.width / (window.devicePixelRatio || 1) - titleBox.w) / 2;
-      titleBox.y = (canvas.height / (window.devicePixelRatio || 1) - titleBox.h) / 2;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particlesRef.current = [];
 
-      const gradient = ctx.createLinearGradient(0, 0, canvas.width / (window.devicePixelRatio || 1), canvas.height / (window.devicePixelRatio || 1));
-      const N = colors.length - 1;
-      colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
-      ctx.fillStyle = gradient;
-      ctx.fillText(titleBox.str, (canvas.width / (window.devicePixelRatio || 1)) / 2, (canvas.height / (window.devicePixelRatio || 1)) / 2);
-      dottify(titleBox, particlesRef.current);
+    const gradient = ctx.createLinearGradient(0, 0, logicalWidth, logicalHeight);
+    const N = colors.length - 1;
+    colors.forEach((c, i) => gradient.addColorStop(i / N, `#${c}`));
+    ctx.fillStyle = gradient;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
-      subtitleBox.h = Math.floor(titleBox.h * 0.3);
-      ctx.font = `400 ${subtitleBox.h}px Verdana, sans-serif`;
-      const subMetrics = ctx.measureText(subtitleBox.str);
-      subtitleBox.w = subMetrics.width;
-      subtitleBox.x = (canvas.width / (window.devicePixelRatio || 1) - subtitleBox.w) / 2;
-      subtitleBox.y = (canvas.height / (window.devicePixelRatio || 1)) / 2 + subtitleBox.h * 1.5;
-      ctx.fillText(subtitleBox.str, (canvas.width / (window.devicePixelRatio || 1)) / 2, (canvas.height / (window.devicePixelRatio || 1)) / 2 + subtitleBox.h * 1.5);
-      dottify(subtitleBox, particlesRef.current);
+    const titleFontSize = Math.min(logicalWidth / 8, 100);
+    ctx.font = `900 ${titleFontSize}px Verdana, sans-serif`;
+    const titleMetrics = ctx.measureText(titleBox.str);
+    const titleX = logicalWidth / 2;
+    const titleY = logicalHeight / 2 - titleFontSize * 0.2;
+    ctx.fillText(titleBox.str, titleX, titleY);
+    
+    titleBox.w = titleMetrics.width;
+    titleBox.h = titleMetrics.actualBoundingBoxAscent + titleMetrics.actualBoundingBoxDescent;
+    titleBox.x = titleX - titleBox.w / 2;
+    titleBox.y = titleY - titleBox.h / 2;
+    dottify(titleBox, particlesRef.current);
+    
+    const subtitleFontSize = Math.floor(titleFontSize * 0.3);
+    ctx.font = `400 ${subtitleFontSize}px Verdana, sans-serif`;
+    const subMetrics = ctx.measureText(subtitleBox.str);
+    const subtitleX = logicalWidth / 2;
+    const subtitleY = logicalHeight / 2 + subtitleFontSize * 1.5;
+    ctx.fillText(subtitleBox.str, subtitleX, subtitleY);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    subtitleBox.w = subMetrics.width;
+    subtitleBox.h = subMetrics.actualBoundingBoxAscent + subMetrics.actualBoundingBoxDescent;
+    subtitleBox.x = subtitleX - subtitleBox.w / 2;
+    subtitleBox.y = subtitleY - subtitleBox.h / 2;
+    dottify(subtitleBox, particlesRef.current);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
   const animate = () => {
@@ -416,10 +438,11 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
     const container = containerRef.current;
     if (!canvas || !container) return;
     
-    ctxRef.current = canvas.getContext('2d');
+    ctxRef.current = canvas.getContext('2d', { willReadFrequently: true });
     
     const setCanvasDimensions = () => {
         const rect = container.getBoundingClientRect();
+        // ★ 修正: dpr 变量在这里定义和使用
         const dpr = window.devicePixelRatio || 1;
         
         canvas.width = rect.width * dpr;
@@ -427,7 +450,6 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
         canvas.style.width = `${rect.width}px`;
         canvas.style.height = `${rect.height}px`;
 
-        ctxRef.current?.setTransform(1, 0, 0, 1, 0, 0); // Reset transform before scaling
         ctxRef.current?.scale(dpr, dpr);
 
         interactionRadiusRef.current = Math.max(50, (rect.width / 10) * 1.5);
@@ -451,7 +473,7 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current; if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
+    // ★ 修正: 此处不再需要 dpr 变量
     pointerRef.current.x = (e.clientX - rect.left);
     pointerRef.current.y = (e.clientY - rect.top);
     if (!hasPointerRef.current) { hasPointerRef.current = true; }
@@ -471,7 +493,7 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
 
 
 // ============================================================================
-// C. “开场动画”与“主场景”组件 (已优化)
+// C. “开场动画”与“主场景”组件 (无变动)
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -483,7 +505,7 @@ interface GalaxyProps { params: GalaxyParams; }
 interface SceneProps { galaxyParams: GalaxyParams; }
 
 // ----------------------------------------------------------------------------
-// C.2. 开场动画核心组件 (无变动，其性能问题与主场景一致)
+// C.2. 开场动画核心组件 (无变动)
 // ----------------------------------------------------------------------------
 const Starfield: React.FC<StarfieldProps> = ({ speed = 2, particleCount = 1500, warpSpeedActive = false, accelerationDuration = 2, maxSpeed = 50, insideColor, outsideColor }) => {
   const ref = useRef<THREE.Points>(null!); const warpStartTime = useRef(0);
@@ -581,7 +603,7 @@ const OpeningAnimation: React.FC<{ onAnimationFinish: () => void; galaxyColors: 
 }
 
 // ----------------------------------------------------------------------------
-// C.3. 主场景组件 (已优化)
+// C.3. 主场景组件 (无变动)
 // ----------------------------------------------------------------------------
 const Galaxy: React.FC<GalaxyProps> = ({ params }) => {
     const pointsRef = useRef<THREE.Points>(null!);
@@ -664,14 +686,13 @@ const Scene: React.FC<SceneProps> = ({ galaxyParams }) => {
 };
 
 // ----------------------------------------------------------------------------
-// D. 主页面和状态控制器 (已集成优化逻辑)
+// D. 主页面和状态控制器 (无变动)
 // ----------------------------------------------------------------------------
 export default function Page() {
-    const { width } = useWindowSize(); // ★ 优化: 使用窗口尺寸
+    const { width } = useWindowSize(); 
     const [isClient, setIsClient] = useState(false);
     const [mainContentVisible, setMainContentVisible] = useState(false);
     
-    // ★ 修正: 在使用 width 之前，先检查它是否存在
     const isMobile = width !== undefined && width < 768;
     const galaxyParams: GalaxyParams = useMemo(() => ({
         count: isMobile ? 50000 : 200000, 
