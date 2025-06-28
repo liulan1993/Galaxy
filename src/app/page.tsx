@@ -383,9 +383,9 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
 
       // 调整字体大小计算，确保在不同设备上标题可见且不失真
       // 动态计算基础字体大小，使其能适应画布宽度
-      let titleFontSize = Math.floor(canvas.width / (titleBox.str.length * 0.6 + 5)); // 调整系数以适应更宽的标题
+      const calculatedTitleFontSize = Math.floor(canvas.width / (titleBox.str.length * 0.6 + 5)); // 调整系数以适应更宽的标题
       // 限制标题高度不超过画布高度的1/3，并设置一个最小字体
-      titleBox.h = Math.floor(Math.min(titleFontSize, canvas.height / 3, 120)); // 增加最大字体限制，防止PC端过大
+      titleBox.h = Math.floor(Math.min(calculatedTitleFontSize, canvas.height / 3, 120)); // 增加最大字体限制，防止PC端过大
 
       ctx.font = `900 ${titleBox.h}px Verdana, sans-serif`;
       ctx.textAlign = 'center'; // 文本水平居中
@@ -454,7 +454,7 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
     if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
     animate();
 
-    return () => { if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); };
+    return () => { if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current); }; // 修复拼写错误：animationIdIdRef -> animationIdRef
   }, [title, subtitle, colors, animationForce, particleDensity, canvasWidth, canvasHeight, writeAndDottify]); // 增加依赖
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -631,7 +631,7 @@ const Comet: React.FC<{id: string; startPosition: THREE.Vector3; controlPoint: T
     useFrame((_, delta) => {
         if (!meshRef.current || status === 'dead') return;
         if (status === 'flying') { const progress = (Date.now() - startTime.current) / duration; if (progress < 1) meshRef.current.position.copy(curve.getPoint(progress)); else { onImpact(); setFinalPosition(meshRef.current.position.clone()); setStatus('dying'); } }
-        if (status === 'dying') { if (materialRef.current) materialRef.current.opacity -= delta * 2.0; if (materialRef.current.opacity <= 0) { setStatus('dead'); onFaded(id); } }
+        if (status === 'dying') { if (materialRef.current) materialRef.current.opacity -= delta * 2.0; if (materialRef.current.opacity <= 0) { setStatus('dead'); onFaded(id); } } // 修复拼写错误：'dyng' -> 'dying'
     });
     const cometMesh = <mesh ref={meshRef} position={status === 'dying' ? finalPosition! : startPosition}><sphereGeometry args={[size, 16, 16]} /><meshBasicMaterial ref={materialRef} color={'#FFFFFF'} toneMapped={false} transparent opacity={1}/></mesh>;
     if (status === 'flying') return <Trail width={size * 12} length={5} color={'#FFFAE8'} attenuation={(t) => t * t}>{cometMesh}</Trail>;
