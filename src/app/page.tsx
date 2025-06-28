@@ -155,7 +155,7 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
     switch (deviceType) {
       case 'mobile': return 65; // 移动端半径更小
       case 'tablet': return 80;
-      case 'desktop': default: return 90;
+      case 'desktop': default: return 95; // 桌面端半径更大以适应角落布局
     }
   }, [deviceType]);
 
@@ -199,7 +199,6 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
 
   const calculateNodePosition = (index: number, total: number) => {
     const angle = ((index / total) * 360 + rotationAngle) % 360;
-    // 使用动态半径
     const radius = orbitRadius; 
     const radian = (angle * Math.PI) / 180;
     const x = radius * Math.cos(radian); const y = radius * Math.sin(radian);
@@ -226,16 +225,18 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
     }
   };
 
-  // 优化: 调整容器的布局和定位，使其在不同设备上表现更佳
-  // PC端保持右下角，移动端和部分平板尺寸下居中
+  // 修复: 调整容器布局，使其在所有设备上都位于右下角
   return (
     <div 
-        className="absolute w-full h-full flex items-center justify-center pointer-events-auto lg:items-end lg:justify-end" 
+        className="absolute inset-0 flex items-end justify-end p-2 sm:p-4 md:p-8 pointer-events-none"
         ref={containerRef} 
-        onClick={handleContainerClick}
     >
       <GlobalTimelineStyles />
-      <div className="relative w-full max-w-4xl h-full flex items-center justify-center lg:w-1/2 lg:h-1/2">
+      {/* 修复: 为轨道设定一个固定的、响应式的尺寸，并使其可交互 */}
+      <div 
+          className="relative w-[280px] h-[280px] sm:w-[320px] sm:h-[320px] md:w-[400px] md:h-[400px] pointer-events-auto"
+          onClick={handleContainerClick}
+      >
         <div 
           className="absolute w-full h-full flex items-center justify-center" 
           ref={orbitRef} 
@@ -249,19 +250,10 @@ function RadialOrbitalTimeline({ deviceType }: { deviceType: DeviceType }) {
             const isExpanded = expandedItems[item.id]; const isRelated = isRelatedToActive(item.id); const isPulsing = pulseEffect[item.id]; const Icon = item.icon;
             const nodeStyle: React.CSSProperties = { transform: `translate(${position.x}px, ${position.y}px)`, zIndex: isExpanded ? 200 : position.zIndex, opacity: isExpanded ? 1 : position.opacity, };
             
-            // 优化: 移动端卡片位置调整
             const cardPositionClass = deviceType === 'mobile' ? 'bottom-16' : 'bottom-20';
 
-            // 新增: 动态调整卡片左右位置，防止其被屏幕边缘截断
-            let cardHorizontalPositionClass = 'left-1/2 -translate-x-1/2'; // 默认居中
-            // 当节点在轨道的右半部分时，将卡片锚定到节点的右侧，使其向左展开
-            if (position.x > orbitRadius * 0.4) {
-              cardHorizontalPositionClass = 'right-8'; // right-8 表示卡片右边缘在节点中心点右侧 2rem 处
-            } 
-            // 当节点在轨道的左半部分时，将卡片锚定到节点的左侧，使其向右展开
-            else if (position.x < -orbitRadius * 0.4) {
-              cardHorizontalPositionClass = 'left-8'; // left-8 表示卡片左边缘在节点中心点左侧 2rem 处
-            }
+            // 修复: 由于组件已固定在右下角，为防止卡片被屏幕边缘截断，所有卡片都应向左展开
+            const cardHorizontalPositionClass = 'right-8';
 
             return (
               <div key={item.id} ref={(el) => { nodeRefs.current[item.id] = el; }} className="absolute transition-all duration-700 cursor-pointer" style={nodeStyle} onClick={(e) => { e.stopPropagation(); toggleItem(item.id); }}>
