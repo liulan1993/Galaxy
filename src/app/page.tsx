@@ -656,7 +656,7 @@ export default function Page() {
                         <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
                             <BlackHoleTitle
                                 title="GALAXY"
-                                subtitle="A New Universe of Components"
+                                subtitle="星河遇见你"
                             />
                         </div>
 
