@@ -427,6 +427,7 @@ const BlackHoleTitle: React.FC<BlackHoleTitleProps> = ({
         canvas.style.width = `${rect.width}px`;
         canvas.style.height = `${rect.height}px`;
 
+        ctxRef.current?.setTransform(1, 0, 0, 1, 0, 0); // Reset transform before scaling
         ctxRef.current?.scale(dpr, dpr);
 
         interactionRadiusRef.current = Math.max(50, (rect.width / 10) * 1.5);
